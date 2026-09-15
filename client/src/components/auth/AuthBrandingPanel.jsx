@@ -79,11 +79,6 @@ export default function AuthBrandingPanel({ heading, subtext }) {
         </div>
         
         {/* Bottom Content */}
-        <div className="relative z-10">
-          <p className="text-[#93C5FD] text-sm">
-            © 2024 CreditDataWatch. All rights reserved.
-          </p>
-        </div>
       </div>
   )
 }
