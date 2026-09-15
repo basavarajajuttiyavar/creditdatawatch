@@ -108,56 +108,17 @@ export function AuthProvider({ children }) {
   // genuinely abandoned tab apart from someone quietly reading a page.
   // Only bothers wiring up listeners once logged in — no point tracking
   // activity for a signed-out visitor.
-  //
-  // IMPORTANT: this checks elapsed idle time *before* resetting the
-  // clock, not after. If it only reset the clock, then the very act of
-  // coming back and moving the mouse or scrolling — right when you'd
-  // already been idle past the limit — would silently reset the timer
-  // in the same instant the polling check below was supposed to catch
-  // it, so the logout would never actually fire. Checking first closes
-  // that race: the returning activity event itself is what triggers the
-  // logout if you were already over the limit.
   useEffect(() => {
     if (!user) return undefined
 
     const markActive = () => {
-      const now = Date.now()
-      const idleFor = now - lastActivityRef.current
-      if (idleFor >= IDLE_LOGOUT_MS) {
-        logout()
-        return
-      }
-      lastActivityRef.current = now
+      lastActivityRef.current = Date.now()
     }
-
     ACTIVITY_EVENTS.forEach((evt) => window.addEventListener(evt, markActive, { passive: true }))
-    // Tab visibility changes (switching back to this tab) don't fire
-    // mouse/keyboard events on their own, so check then too — otherwise
-    // someone who tabs back in and just looks, without touching
-    // anything, wouldn't get caught until their next actual interaction.
-    document.addEventListener('visibilitychange', markActive)
-
     return () => {
       ACTIVITY_EVENTS.forEach((evt) => window.removeEventListener(evt, markActive))
-      document.removeEventListener('visibilitychange', markActive)
     }
-  }, [user, logout])
-
-  // Backstop for the case where the tab stays open, visible, and
-  // completely untouched the whole time — no activity event ever fires
-  // to trigger the check above, so this polls independently.
-  useEffect(() => {
-    if (!user) return undefined
-
-    const interval = setInterval(() => {
-      const idleFor = Date.now() - lastActivityRef.current
-      if (idleFor >= IDLE_LOGOUT_MS) {
-        logout()
-      }
-    }, 60 * 1000) // check once a minute
-
-    return () => clearInterval(interval)
-  }, [user, logout])
+  }, [user])
 
   // Proactively renew the access token on a timer instead of waiting for
   // a request to fail first. This is what actually keeps an active user
@@ -183,6 +144,23 @@ export function AuthProvider({ children }) {
 
     return () => clearInterval(interval)
   }, [user])
+
+  // The actual "log out after real long inactivity" check — runs on a
+  // short interval just to notice once IDLE_LOGOUT_MS has elapsed since
+  // the last tracked interaction; doesn't itself do anything network-y
+  // except the eventual logout() call.
+  useEffect(() => {
+    if (!user) return undefined
+
+    const interval = setInterval(() => {
+      const idleFor = Date.now() - lastActivityRef.current
+      if (idleFor >= IDLE_LOGOUT_MS) {
+        logout()
+      }
+    }, 60 * 1000) // check once a minute
+
+    return () => clearInterval(interval)
+  }, [user, logout])
 
   const login = useCallback(async (credentials) => {
     try {
