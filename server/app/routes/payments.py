@@ -404,7 +404,7 @@ async def upload_payment_proof(
         filename = f"{uuid.uuid4()}_{file.filename}"
         file_bytes = await file.read()
         result = await store_uploaded_file(file_bytes, filename, file.content_type, "payment_proofs")
-        proof_url = result["url"] if result["storage"] == "drive" else f"{settings.BASE_URL}{result['url']}"
+        proof_url = result["url"] if result["url"].startswith("http") else f"{settings.BASE_URL}{result['url']}"
         
         await db.execute(text("""
             UPDATE payments SET 

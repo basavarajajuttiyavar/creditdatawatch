@@ -28,7 +28,7 @@ async def upload_evidence(
         filename = f"{file_id}.{file_ext}"
         file_bytes = await file.read()
         result = await store_uploaded_file(file_bytes, filename, file.content_type, "evidence")
-        url = result["url"] if result["storage"] == "drive" else f"{settings.BASE_URL}{result['url']}"
+        url = result["url"] if result["url"].startswith("http") else f"{settings.BASE_URL}{result['url']}"
 
         return ResponseFormatter.create_success(data={"url": url, "filename": file.filename})
     except Exception as e:

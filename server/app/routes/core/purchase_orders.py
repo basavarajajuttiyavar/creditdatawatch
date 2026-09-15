@@ -1164,7 +1164,7 @@ async def mark_paid(
             filename = f"{uuid.uuid4()}_{file.filename}"
             file_bytes = await file.read()
             result = await store_uploaded_file(file_bytes, filename, file.content_type, "payment_receipts")
-            po.payment_receipt_url = result["url"] if result["storage"] == "drive" else f"{settings.BASE_URL}{result['url']}"
+            po.payment_receipt_url = result["url"] if result["url"].startswith("http") else f"{settings.BASE_URL}{result['url']}"
             po.payment_receipt_filename = file.filename
         
         # Update status to PAID as requested
@@ -1251,7 +1251,7 @@ async def upload_payment_receipt(
         filename = f"{uuid.uuid4()}_{file.filename}"
         file_bytes = await file.read()
         result = await store_uploaded_file(file_bytes, filename, file.content_type, "payment_receipts")
-        url = result["url"] if result["storage"] == "drive" else f"{settings.BASE_URL}{result['url']}"
+        url = result["url"] if result["url"].startswith("http") else f"{settings.BASE_URL}{result['url']}"
         return ResponseFormatter.create_success(data={"url": url, "filename": file.filename})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
@@ -1744,7 +1744,7 @@ async def send_to_legal_support(
                         file_bytes = await file.read()
                         result = await store_uploaded_file(file_bytes, filename, file.content_type, "legal_evidence")
 
-                        evidence_url = result["url"] if result["storage"] == "drive" else f"{settings.BASE_URL}{result['url']}"
+                        evidence_url = result["url"] if result["url"].startswith("http") else f"{settings.BASE_URL}{result['url']}"
                         evidence_filename = file.filename
                     except Exception as e:
                         raise HTTPException(status_code=500, detail=f"Failed to upload evidence: {str(e)}")

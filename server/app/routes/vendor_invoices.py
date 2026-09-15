@@ -514,7 +514,7 @@ async def mark_vendor_invoice_paid(
         filename = f"{uuid4()}_{file.filename}"
         file_bytes = await file.read()
         result = await store_uploaded_file(file_bytes, filename, file.content_type, "payment_receipts")
-        invoice.payment_receipt_url = result["url"] if result["storage"] == "drive" else f"{settings.BASE_URL}{result['url']}"
+        invoice.payment_receipt_url = result["url"] if result["url"].startswith("http") else f"{settings.BASE_URL}{result['url']}"
         invoice.payment_receipt_filename = file.filename
 
     invoice.status = "Paid"
@@ -553,7 +553,7 @@ async def upload_vendor_invoice_document(
     filename = f"{uuid4()}_{file.filename}"
     file_bytes = await file.read()
     result = await store_uploaded_file(file_bytes, filename, file.content_type, "vendor_invoices")
-    invoice.document_url = result["url"] if result["storage"] == "drive" else f"{settings.BASE_URL}{result['url']}"
+    invoice.document_url = result["url"] if result["url"].startswith("http") else f"{settings.BASE_URL}{result['url']}"
     invoice.document_filename = file.filename
     invoice.updated_at = get_utc_now()
 

@@ -238,7 +238,7 @@ async def mark_sales_invoice_paid(
         filename = f"{uuid4()}_{file.filename}"
         file_bytes = await file.read()
         result = await store_uploaded_file(file_bytes, filename, file.content_type, "payment_receipts")
-        invoice.payment_receipt_url = result["url"] if result["storage"] == "drive" else f"{settings.BASE_URL}{result['url']}"
+        invoice.payment_receipt_url = result["url"] if result["url"].startswith("http") else f"{settings.BASE_URL}{result['url']}"
         invoice.payment_receipt_filename = file.filename
 
     invoice.status = "Paid"
@@ -436,7 +436,7 @@ async def send_sales_invoice_to_legal_support(
         fname = f"{uuid4()}.{file_ext}"
         file_bytes = await file.read()
         result = await store_uploaded_file(file_bytes, fname, file.content_type, "legal_evidence")
-        evidence_url = result["url"] if result["storage"] == "drive" else f"{settings.BASE_URL}{result['url']}"
+        evidence_url = result["url"] if result["url"].startswith("http") else f"{settings.BASE_URL}{result['url']}"
         evidence_filename = file.filename
 
     invoice.legal_support_status = "PENDING_LEGAL"
