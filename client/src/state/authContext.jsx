@@ -8,12 +8,32 @@
  * - Authentication status
  */
 
-import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import PropTypes from 'prop-types'
 import authService from '../services/authService'
 
 // Create auth context
 const AuthContext = createContext(null)
+
+// How often to proactively refresh the access token while the user is
+// active, in milliseconds. Kept comfortably under the backend's 30-minute
+// ACCESS_TOKEN_EXPIRE_MINUTES so the token never actually expires during
+// normal use — previously the app only refreshed *reactively*, after a
+// request had already failed with 401, which is what let people get
+// dropped to the login page mid-session.
+const SILENT_REFRESH_INTERVAL_MS = 10 * 60 * 1000 // 10 minutes
+
+// How long the user can go with zero interaction (no click, key press,
+// mouse movement, scroll, or touch) before being treated as "really"
+// inactive and logged out. Well above the access-token lifetime on
+// purpose: an active user is kept in via the silent refresh above and
+// should never hit this; it only fires for a genuinely abandoned tab.
+const IDLE_LOGOUT_MS = 15 * 60 * 1000 // 15 minutes
+
+// User-interaction events that count as "still active". Deliberately
+// lightweight (no per-event network calls) — these just bump a
+// timestamp in a ref, which the idle-check interval below reads.
+const ACTIVITY_EVENTS = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart']
 
 /**
  * AuthProvider Component - Wrap your app with this
@@ -24,6 +44,7 @@ export function AuthProvider({ children }) {
   const [subscription, setSubscription] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const lastActivityRef = useRef(Date.now())
 
   // Load user on mount (if already authenticated)
   const loadUser = useCallback(async () => {
@@ -67,9 +88,79 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
+  const logout = useCallback(async () => {
+    try {
+      await authService.logout()
+    } catch (err) {
+      console.error('Logout error:', err)
+    } finally {
+      setUser(null)
+      setToken(null)
+      setSubscription(null)
+    }
+  }, [])
+
   useEffect(() => {
     loadUser()
   }, [loadUser])
+
+  // Track user interaction so the idle-logout check below can tell a
+  // genuinely abandoned tab apart from someone quietly reading a page.
+  // Only bothers wiring up listeners once logged in — no point tracking
+  // activity for a signed-out visitor.
+  useEffect(() => {
+    if (!user) return undefined
+
+    const markActive = () => {
+      lastActivityRef.current = Date.now()
+    }
+    ACTIVITY_EVENTS.forEach((evt) => window.addEventListener(evt, markActive, { passive: true }))
+    return () => {
+      ACTIVITY_EVENTS.forEach((evt) => window.removeEventListener(evt, markActive))
+    }
+  }, [user])
+
+  // Proactively renew the access token on a timer instead of waiting for
+  // a request to fail first. This is what actually keeps an active user
+  // logged in indefinitely — the reactive refresh in apiClient.js is
+  // still there as a safety net for the moment right around a refresh
+  // boundary, but this is what prevents ever hitting that path during
+  // normal use.
+  useEffect(() => {
+    if (!user) return undefined
+
+    const interval = setInterval(async () => {
+      // Skip refreshing a token nobody's going to use — if the tab's
+      // been idle longer than the refresh interval itself, the
+      // idle-logout check below will end the session on its own next.
+      const idleFor = Date.now() - lastActivityRef.current
+      if (idleFor > SILENT_REFRESH_INTERVAL_MS) return
+      try {
+        await authService.refreshToken()
+      } catch (err) {
+        console.error('Silent token refresh failed:', err)
+      }
+    }, SILENT_REFRESH_INTERVAL_MS)
+
+    return () => clearInterval(interval)
+  }, [user])
+
+  // The actual "log out after real long inactivity" check — runs on a
+  // short interval just to notice once IDLE_LOGOUT_MS has elapsed since
+  // the last tracked interaction; doesn't itself do anything network-y
+  // except the eventual logout() call.
+  useEffect(() => {
+    if (!user) return undefined
+
+    const interval = setInterval(() => {
+      const idleFor = Date.now() - lastActivityRef.current
+      if (idleFor >= IDLE_LOGOUT_MS) {
+        logout()
+      }
+    }, 60 * 1000) // check once a minute
+
+    return () => clearInterval(interval)
+  }, [user, logout])
 
   const login = useCallback(async (credentials) => {
     try {
@@ -110,18 +201,6 @@ export function AuthProvider({ children }) {
       return false
     } finally {
       setLoading(false)
-    }
-  }, [])
-
-  const logout = useCallback(async () => {
-    try {
-      await authService.logout()
-    } catch (err) {
-      console.error('Logout error:', err)
-    } finally {
-      setUser(null)
-      setToken(null)
-      setSubscription(null)
     }
   }, [])
 
