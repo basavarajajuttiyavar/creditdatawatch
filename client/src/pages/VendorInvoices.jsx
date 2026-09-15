@@ -194,6 +194,196 @@ export default function VendorInvoices() {
     setPdfScanBanner(null)
   }
 
+  // Shared between the always-visible "Add Vendor Invoice" panel and the
+  // separate "Edit Vendor Invoice" popup — same fields, same submit
+  // handler, just rendered in two different containers. Matches the
+  // pattern already used for Sales Invoices/Purchase Orders' own
+  // add-vs-edit split.
+  const renderVendorInvoiceFormBody = () => (
+    <>
+      {pdfScanBanner && (
+        <div className="mb-6 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="font-medium">
+                Filled from {pdfScanBanner.fileName} — review the fields below, fill in anything missed, then save.
+              </p>
+              {pdfScanBanner.itemsFound === 0 && (
+                <p className="mt-1 text-green-700">No item table could be read from this file — please add items manually.</p>
+              )}
+              {pdfScanBanner.warnings.length > 0 && (
+                <ul className="mt-2 list-disc list-inside text-amber-800">
+                  {pdfScanBanner.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                </ul>
+              )}
+            </div>
+            <button type="button" onClick={() => setPdfScanBanner(null)} className="text-green-700 hover:text-green-900 font-bold leading-none" aria-label="Dismiss">×</button>
+          </div>
+        </div>
+      )}
+
+      {formError && (
+        <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{formError}</div>
+      )}
+
+      {/* VENDOR DETAILS */}
+      <h3 className="font-bold text-lg mb-3">Vendor Details</h3>
+      <div className="grid md:grid-cols-2 gap-4 mb-6">
+        <div className="md:col-span-2">
+          <label className="block text-xs font-medium text-gray-600 mb-1">Vendor Name <span className="text-red-500">*</span></label>
+          <input required value={formData.vendor_name} onChange={e => setFormData({ ...formData, vendor_name: e.target.value })} className="border p-2 rounded w-full" />
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-xs font-medium text-gray-600 mb-1">Vendor Address</label>
+          <textarea value={formData.vendor_address} onChange={e => setFormData({ ...formData, vendor_address: e.target.value })} className="border p-2 rounded w-full" rows="2" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Tax ID</label>
+          <input value={formData.vendor_tax_id} onChange={e => setFormData({ ...formData, vendor_tax_id: e.target.value })} placeholder="e.g. GSTIN, VAT, FEIN number" className="border p-2 rounded w-full" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Tax ID Type</label>
+          <select value={formData.vendor_tax_id_type} onChange={e => setFormData({ ...formData, vendor_tax_id_type: e.target.value })} className="border p-2 rounded w-full bg-white">
+            <option value="">Select type…</option>
+            <option value="GSTIN">GSTIN</option>
+            <option value="PAN">PAN</option>
+            <option value="VAT">VAT</option>
+            <option value="FEIN">FEIN</option>
+            <option value="CIN">CIN</option>
+            <option value="TAN">TAN</option>
+            <option value="COC">Chamber of Commerce</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Vendor Email</label>
+          <input type="email" value={formData.vendor_email} onChange={e => setFormData({ ...formData, vendor_email: e.target.value })} className="border p-2 rounded w-full" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Vendor Mobile</label>
+          <input type="tel" value={formData.vendor_phone} onChange={e => setFormData({ ...formData, vendor_phone: e.target.value })} className="border p-2 rounded w-full" />
+        </div>
+      </div>
+
+      {/* INVOICE INFO */}
+      <h3 className="font-bold text-lg mb-3">Invoice Information</h3>
+      <div className="grid md:grid-cols-3 gap-4 mb-6">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Invoice Number <span className="text-red-500">*</span></label>
+          <input required value={formData.invoice_number} onChange={e => setFormData({ ...formData, invoice_number: e.target.value })} className="border p-2 rounded w-full" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Invoice Date <span className="text-red-500">*</span></label>
+          <input required type="date" value={formData.invoice_date} onChange={e => setFormData({ ...formData, invoice_date: e.target.value })} className="border p-2 rounded w-full" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Payment Due Date <span className="text-red-500">*</span></label>
+          <input required type="date" value={formData.payment_due_date} onChange={e => setFormData({ ...formData, payment_due_date: e.target.value })} className="border p-2 rounded w-full" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Payment Terms</label>
+          <input value={formData.payment_terms} onChange={e => setFormData({ ...formData, payment_terms: e.target.value })} className="border p-2 rounded w-full" placeholder="e.g. Net 30" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Place of Supply</label>
+          <input value={formData.place_of_supply} onChange={e => setFormData({ ...formData, place_of_supply: e.target.value })} className="border p-2 rounded w-full" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Currency</label>
+          <select value={formData.currency} onChange={e => setFormData({ ...formData, currency: e.target.value })} className="border p-2 rounded w-full">
+            <option value="INR">INR</option>
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+            <option value="GBP">GBP</option>
+          </select>
+        </div>
+        {formData.currency !== 'INR' && (
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Exchange Rate (₹ per 1 {formData.currency})
+            </label>
+            <input
+              type="number" step="0.01" min="0.01"
+              value={formData.exchange_rate}
+              onChange={e => setFormData({ ...formData, exchange_rate: e.target.value })}
+              className="border p-2 rounded w-full"
+              placeholder="e.g. 83.50"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Used to convert this bill into ₹ for dashboard totals — check today's actual rate.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ITEMS */}
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-bold text-lg">Items</h3>
+        <button type="button" onClick={addItem} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-3 py-1.5 rounded-lg">+ Add Item</button>
+      </div>
+      <div className="overflow-x-auto mb-6">
+        <table className="w-full text-sm min-w-[500px]">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="p-2 text-left">Description</th>
+              <th className="p-2 text-left">HSN/SAC</th>
+              <th className="p-2 text-left">Qty</th>
+              <th className="p-2 text-left">Rate</th>
+              <th className="p-2 text-left">Amount</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {formData.items.map((item, idx) => (
+              <tr key={idx} className="border-b">
+                <td className="p-2"><input value={item.desc} onChange={e => updateItem(idx, 'desc', e.target.value)} className="border p-1.5 rounded w-full" /></td>
+                <td className="p-2"><input value={item.hsn || ''} onChange={e => updateItem(idx, 'hsn', e.target.value)} className="border p-1.5 rounded w-full" /></td>
+                <td className="p-2"><input type="number" min="0" step="any" value={item.qty} onChange={e => updateItem(idx, 'qty', e.target.value)} className="border p-1.5 rounded w-20" /></td>
+                <td className="p-2"><input type="number" min="0" step="any" value={item.rate} onChange={e => updateItem(idx, 'rate', e.target.value)} className="border p-1.5 rounded w-24" /></td>
+                <td className="p-2 font-medium">{money(item.amount, formData.currency)}</td>
+                <td className="p-2">
+                  {formData.items.length > 1 && (
+                    <button type="button" onClick={() => removeItem(idx)} className="text-red-500 hover:text-red-700">✕</button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex justify-end mb-6">
+        <div className="w-full max-w-xs space-y-1 text-sm">
+          <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span>{money(formData.subtotal, formData.currency)}</span></div>
+          <div className="flex justify-between font-bold text-base border-t pt-1"><span>Total</span><span>{money(formData.total, formData.currency)}</span></div>
+        </div>
+      </div>
+
+      {/* DOCUMENT */}
+      <h3 className="font-bold text-lg mb-3">Vendor's Document</h3>
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-2">Upload their invoice/PDF (optional)</label>
+        <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setVendorInvoiceFile(e.target.files?.[0] || null)} />
+        {vendorInvoiceFile && <p className="text-sm text-gray-500 mt-1">Selected: {vendorInvoiceFile.name}</p>}
+        {editingInvoiceId && formData.document_url && !vendorInvoiceFile && (
+          <p className="text-sm text-gray-500 mt-1">
+            Current: <a href={formData.document_url.startsWith('http') ? formData.document_url : `${STATIC_BASE_URL}${formData.document_url}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{formData.document_filename || 'View document'}</a>
+          </p>
+        )}
+      </div>
+
+      <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+      <textarea value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} className="w-full border p-2 rounded mb-6" rows="3" placeholder="Notes" />
+
+      <div className="flex gap-3">
+        <button type="button" onClick={closeFormModal} className="flex-1 px-6 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium">Cancel</button>
+        <button type="submit" disabled={saving} className="flex-1 px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold disabled:opacity-60">
+          {saving ? 'Saving…' : editingInvoiceId ? 'Save Changes' : 'Add Vendor Invoice'}
+        </button>
+      </div>
+    </>
+  )
+
   const openCreateModal = () => {
     setFormData(emptyForm)
     setEditingInvoiceId(null)
@@ -776,191 +966,42 @@ export default function VendorInvoices() {
             </div>
           </div>
 
-          {pdfScanBanner && (
-            <div className="mb-6 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-medium">
-                    Filled from {pdfScanBanner.fileName} — review the fields below, fill in anything missed, then save.
-                  </p>
-                  {pdfScanBanner.itemsFound === 0 && (
-                    <p className="mt-1 text-green-700">No item table could be read from this file — please add items manually.</p>
-                  )}
-                  {pdfScanBanner.warnings.length > 0 && (
-                    <ul className="mt-2 list-disc list-inside text-amber-800">
-                      {pdfScanBanner.warnings.map((w, i) => <li key={i}>{w}</li>)}
-                    </ul>
-                  )}
-                </div>
-                <button type="button" onClick={() => setPdfScanBanner(null)} className="text-green-700 hover:text-green-900 font-bold leading-none" aria-label="Dismiss">×</button>
-              </div>
+          {/* Editing happens in a separate popup instead (matching the
+              Sales Invoices / Purchase Orders edit pattern), so this
+              inline panel just shows a placeholder while an edit is in
+              progress rather than silently swapping to show the same
+              form for a different invoice. */}
+          {editingInvoiceId ? (
+            <div className="p-6 text-center text-gray-500">
+              <div className="text-4xl mb-3">✏️</div>
+              <p className="font-medium">Editing a vendor bill</p>
+              <p className="text-sm mt-1">Finish or cancel editing in the popup to add a new bill here.</p>
             </div>
+          ) : (
+            <form onSubmit={handleSubmit}>
+              {renderVendorInvoiceFormBody()}
+            </form>
           )}
-
-          {formError && (
-            <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{formError}</div>
-          )}
-
-          <form onSubmit={handleSubmit}>
-
-            {/* VENDOR DETAILS */}
-            <h3 className="font-bold text-lg mb-3">Vendor Details</h3>
-            <div className="grid md:grid-cols-2 gap-4 mb-6">
-              <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-gray-600 mb-1">Vendor Name <span className="text-red-500">*</span></label>
-                <input required value={formData.vendor_name} onChange={e => setFormData({ ...formData, vendor_name: e.target.value })} className="border p-2 rounded w-full" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-gray-600 mb-1">Vendor Address</label>
-                <textarea value={formData.vendor_address} onChange={e => setFormData({ ...formData, vendor_address: e.target.value })} className="border p-2 rounded w-full" rows="2" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Tax ID</label>
-                <input value={formData.vendor_tax_id} onChange={e => setFormData({ ...formData, vendor_tax_id: e.target.value })} placeholder="e.g. GSTIN, VAT, FEIN number" className="border p-2 rounded w-full" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Tax ID Type</label>
-                <select value={formData.vendor_tax_id_type} onChange={e => setFormData({ ...formData, vendor_tax_id_type: e.target.value })} className="border p-2 rounded w-full bg-white">
-                  <option value="">Select type…</option>
-                  <option value="GSTIN">GSTIN</option>
-                  <option value="PAN">PAN</option>
-                  <option value="VAT">VAT</option>
-                  <option value="FEIN">FEIN</option>
-                  <option value="CIN">CIN</option>
-                  <option value="TAN">TAN</option>
-                  <option value="COC">Chamber of Commerce</option>
-                  <option value="OTHER">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Vendor Email</label>
-                <input type="email" value={formData.vendor_email} onChange={e => setFormData({ ...formData, vendor_email: e.target.value })} className="border p-2 rounded w-full" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Vendor Mobile</label>
-                <input type="tel" value={formData.vendor_phone} onChange={e => setFormData({ ...formData, vendor_phone: e.target.value })} className="border p-2 rounded w-full" />
-              </div>
-            </div>
-
-            {/* INVOICE INFO */}
-            <h3 className="font-bold text-lg mb-3">Invoice Information</h3>
-            <div className="grid md:grid-cols-3 gap-4 mb-6">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Invoice Number <span className="text-red-500">*</span></label>
-                <input required value={formData.invoice_number} onChange={e => setFormData({ ...formData, invoice_number: e.target.value })} className="border p-2 rounded w-full" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Invoice Date <span className="text-red-500">*</span></label>
-                <input required type="date" value={formData.invoice_date} onChange={e => setFormData({ ...formData, invoice_date: e.target.value })} className="border p-2 rounded w-full" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Payment Due Date <span className="text-red-500">*</span></label>
-                <input required type="date" value={formData.payment_due_date} onChange={e => setFormData({ ...formData, payment_due_date: e.target.value })} className="border p-2 rounded w-full" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Payment Terms</label>
-                <input value={formData.payment_terms} onChange={e => setFormData({ ...formData, payment_terms: e.target.value })} className="border p-2 rounded w-full" placeholder="e.g. Net 30" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Place of Supply</label>
-                <input value={formData.place_of_supply} onChange={e => setFormData({ ...formData, place_of_supply: e.target.value })} className="border p-2 rounded w-full" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Currency</label>
-                <select value={formData.currency} onChange={e => setFormData({ ...formData, currency: e.target.value })} className="border p-2 rounded w-full">
-                  <option value="INR">INR</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="GBP">GBP</option>
-                </select>
-              </div>
-              {formData.currency !== 'INR' && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Exchange Rate (₹ per 1 {formData.currency})
-                  </label>
-                  <input
-                    type="number" step="0.01" min="0.01"
-                    value={formData.exchange_rate}
-                    onChange={e => setFormData({ ...formData, exchange_rate: e.target.value })}
-                    className="border p-2 rounded w-full"
-                    placeholder="e.g. 83.50"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    Used to convert this bill into ₹ for dashboard totals — check today's actual rate.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* ITEMS */}
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-lg">Items</h3>
-              <button type="button" onClick={addItem} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-3 py-1.5 rounded-lg">+ Add Item</button>
-            </div>
-            <div className="overflow-x-auto mb-6">
-              <table className="w-full text-sm min-w-[500px]">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="p-2 text-left">Description</th>
-                    <th className="p-2 text-left">HSN/SAC</th>
-                    <th className="p-2 text-left">Qty</th>
-                    <th className="p-2 text-left">Rate</th>
-                    <th className="p-2 text-left">Amount</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {formData.items.map((item, idx) => (
-                    <tr key={idx} className="border-b">
-                      <td className="p-2"><input value={item.desc} onChange={e => updateItem(idx, 'desc', e.target.value)} className="border p-1.5 rounded w-full" /></td>
-                      <td className="p-2"><input value={item.hsn || ''} onChange={e => updateItem(idx, 'hsn', e.target.value)} className="border p-1.5 rounded w-full" /></td>
-                      <td className="p-2"><input type="number" min="0" step="any" value={item.qty} onChange={e => updateItem(idx, 'qty', e.target.value)} className="border p-1.5 rounded w-20" /></td>
-                      <td className="p-2"><input type="number" min="0" step="any" value={item.rate} onChange={e => updateItem(idx, 'rate', e.target.value)} className="border p-1.5 rounded w-24" /></td>
-                      <td className="p-2 font-medium">{money(item.amount, formData.currency)}</td>
-                      <td className="p-2">
-                        {formData.items.length > 1 && (
-                          <button type="button" onClick={() => removeItem(idx)} className="text-red-500 hover:text-red-700">✕</button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex justify-end mb-6">
-              <div className="w-full max-w-xs space-y-1 text-sm">
-                <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span>{money(formData.subtotal, formData.currency)}</span></div>
-                <div className="flex justify-between font-bold text-base border-t pt-1"><span>Total</span><span>{money(formData.total, formData.currency)}</span></div>
-              </div>
-            </div>
-
-            {/* DOCUMENT */}
-            <h3 className="font-bold text-lg mb-3">Vendor's Document</h3>
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Upload their invoice/PDF (optional)</label>
-              <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setVendorInvoiceFile(e.target.files?.[0] || null)} />
-              {vendorInvoiceFile && <p className="text-sm text-gray-500 mt-1">Selected: {vendorInvoiceFile.name}</p>}
-              {editingInvoiceId && formData.document_url && !vendorInvoiceFile && (
-                <p className="text-sm text-gray-500 mt-1">
-                  Current: <a href={formData.document_url.startsWith('http') ? formData.document_url : `${STATIC_BASE_URL}${formData.document_url}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{formData.document_filename || 'View document'}</a>
-                </p>
-              )}
-            </div>
-
-            <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
-            <textarea value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} className="w-full border p-2 rounded mb-6" rows="3" placeholder="Notes" />
-
-            <div className="flex gap-3">
-              <button type="button" onClick={closeFormModal} className="flex-1 px-6 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium">Cancel</button>
-              <button type="submit" disabled={saving} className="flex-1 px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold disabled:opacity-60">
-                {saving ? 'Saving…' : editingInvoiceId ? 'Save Changes' : 'Add Vendor Invoice'}
-              </button>
-            </div>
-          </form>
         </div>
       </div>
+
+      {/* EDIT VENDOR INVOICE MODAL — separate popup, mirroring how
+          Invoices.jsx (Sales) and PurchaseOrders.jsx handle editing, so
+          it doesn't just silently update the always-visible Add panel
+          in place. */}
+      {editingInvoiceId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[200]">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[95vh] overflow-y-auto p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-primary-600">Edit Vendor Invoice</h2>
+              <button onClick={closeFormModal} className="text-sm text-gray-400 hover:text-gray-600 underline">Cancel edit</button>
+            </div>
+            <form onSubmit={handleSubmit}>
+              {renderVendorInvoiceFormBody()}
+            </form>
+          </div>
+        </div>
+      )}
 
       {showPdfImport && (
         <VendorInvoicePDFImportModal onClose={() => setShowPdfImport(false)} onScanned={handlePdfScanned} />
