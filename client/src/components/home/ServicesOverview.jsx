@@ -6,8 +6,27 @@ export default function ServicesOverview() {
       <div className="container-custom">
         <div className="w-24 h-1 mx-auto bg-gradient-to-r from-[#1E3A8A] to-[#3B82F6] rounded-full mb-8" />
         <div className="grid lg:grid-cols-2 gap-10 items-start">
+          {/* Flow diagram (same one used on About Us) — the source image is a
+              tall portrait infographic, so it's capped to a sane width here
+              instead of stretching to fill the full grid column. */}
+          <div className="flex justify-center lg:justify-start order-2 lg:order-1">
+            <div
+              className="card max-w-[380px] sm:max-w-[430px] w-full"
+              style={{ borderTop: '3px solid #1E3A8A', boxShadow: '0 4px 24px rgba(30, 58, 138, 0.15)' }}
+            >
+              <img
+                src="/flow-diagram.png"
+                alt="How CreditDataWatch works"
+                className="w-full rounded-lg border border-gray-200"
+              />
+              <p className="text-center text-xs text-[#64748B] mt-3">
+                From reporting an overdue payer to settlement — end to end
+              </p>
+            </div>
+          </div>
+
           {/* Copy */}
-          <div>
+          <div className="order-1 lg:order-2">
             <h2 className="text-xl sm:text-2xl font-heading font-bold text-[#0F172A] mb-3">
               What CreditDataWatch Does
             </h2>
@@ -36,25 +55,6 @@ export default function ServicesOverview() {
             >
               Explore Our Services
             </Link>
-          </div>
-
-          {/* Flow diagram (same one used on About Us) — the source image is a
-              tall portrait infographic, so it's capped to a sane width here
-              instead of stretching to fill the full grid column. */}
-          <div className="flex justify-center lg:justify-end">
-            <div
-              className="card max-w-[380px] sm:max-w-[430px] w-full"
-              style={{ borderTop: '3px solid #1E3A8A', boxShadow: '0 4px 24px rgba(30, 58, 138, 0.15)' }}
-            >
-              <img
-                src="/flow-diagram.png"
-                alt="How CreditDataWatch works"
-                className="w-full rounded-lg border border-gray-200"
-              />
-              <p className="text-center text-xs text-[#64748B] mt-3">
-                From reporting an overdue payer to settlement — end to end
-              </p>
-            </div>
           </div>
         </div>
       </div>
