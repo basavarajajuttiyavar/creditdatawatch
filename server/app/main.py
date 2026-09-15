@@ -38,6 +38,7 @@ from app.routes import (
     workflow,
     credibility_index,
     business_check,
+    files,
 )
 from app.routes.workflow import router as workflow_router
 
@@ -728,7 +729,7 @@ async def lifespan(app: FastAPI):
                                (hex(randomblob(16)), 'business_impact_stats', :val2, 'Homepage business impact stats (4 items, JSON)')
                     """), {
                         "val": '[{"label": "Average Trust Score", "value": "98%"}, {"label": "Verified Companies", "value": "12,450"}, {"label": "Secure Transactions", "value": "4,56,780+"}]',
-                        "val2": '[{"label": "Highest No. of Defaulters by a Single Customer", "value": "668+"}, {"label": "Total Number of MSMEs Connected", "value": "39+ Lakhs"}, {"label": "Average Percentage of Settlements", "value": "59%"}, {"label": "Total amount reported defaulter", "value": "4578+ Crores"}]',
+                        "val2": '[{"label": "Defaulters by a Single Customer", "value": "668+"}, {"label": "MSMEs Connected", "value": "39+ Lakhs"}, {"label": "Settlements", "value": "59%"}, {"label": "Reported Defaulter Amount", "value": "4578+ Crores"}]',
                     })
                 else:
                     await conn.execute(text("""
@@ -749,7 +750,7 @@ async def lifespan(app: FastAPI):
                         ON CONFLICT (key) DO NOTHING
                     """), {
                         "val": '[{"label": "Average Trust Score", "value": "98%"}, {"label": "Verified Companies", "value": "12,450"}, {"label": "Secure Transactions", "value": "4,56,780+"}]',
-                        "val2": '[{"label": "Highest No. of Defaulters by a Single Customer", "value": "668+"}, {"label": "Total Number of MSMEs Connected", "value": "39+ Lakhs"}, {"label": "Average Percentage of Settlements", "value": "59%"}, {"label": "Total amount reported defaulter", "value": "4578+ Crores"}]',
+                        "val2": '[{"label": "Defaulters by a Single Customer", "value": "668+"}, {"label": "MSMEs Connected", "value": "39+ Lakhs"}, {"label": "Settlements", "value": "59%"}, {"label": "Reported Defaulter Amount", "value": "4578+ Crores"}]',
                     })
                 print("[SETTINGS] Role settings initialized")
                 logger.info("system_settings table and role settings initialized")
@@ -1062,6 +1063,7 @@ app.include_router(activity.router, prefix=f"{API_PREFIX}/activity", tags=["Acti
 app.include_router(core.business_requests_router, prefix=f"{API_PREFIX}", tags=["Business Requests"])
 app.include_router(credibility_index.router)
 app.include_router(business_check.router, prefix=API_PREFIX)
+app.include_router(files.router, prefix=API_PREFIX, tags=["Files"])
 
 
 import asyncio

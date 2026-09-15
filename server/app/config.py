@@ -93,6 +93,25 @@ class Settings(BaseSettings):
     GOOGLE_FOLDER_ID: str = ""
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/drive/callback"
 
+    # Backblaze B2 (S3-compatible object storage) — preferred over Google
+    # Drive for uploaded files. Unlike the Drive OAuth flow above, B2 auth
+    # is a static Application Key ID + Application Key, so there's no
+    # "Testing mode" OAuth consent screen and no 7-day refresh-token
+    # expiry silently breaking already-shared links (see drive_service.py
+    # SCOPES comment for the full explanation of that Drive-side issue).
+    # The bucket is kept Private (no Backblaze payment method required)
+    # and files are served through /api/v1/files/b2/{key}, which mints a
+    # fresh presigned URL on every request — see b2_service.py.
+    # All four must be set for B2 to be used; file_storage_service.py
+    # falls back to Drive, then local disk, if any are missing.
+    B2_APPLICATION_KEY_ID: str = ""
+    B2_APPLICATION_KEY: str = ""
+    B2_BUCKET_NAME: str = ""
+    # S3-compatible endpoint for your bucket's region, e.g.
+    # "https://s3.us-west-004.backblazeb2.com" — shown on the bucket's
+    # page in the B2 dashboard under "Endpoint".
+    B2_ENDPOINT_URL: str = ""
+
     # OTP (Twilio - optional, can use stub)
     OTP_PROVIDER: str = "smtp"  # or "twilio" or "mock"
     TWILIO_ACCOUNT_SID: str = ""

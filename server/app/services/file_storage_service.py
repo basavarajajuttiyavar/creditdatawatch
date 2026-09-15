@@ -1,18 +1,22 @@
 """
 Single entry point every upload endpoint should use to save an uploaded
-file. Tries Google Drive first (via a service account — no per-user login
-needed), and only falls back to local disk if Drive isn't configured.
+file. Tries Backblaze B2 first (see b2_service.py for why it replaced
+Drive as the preferred backend), then Google Drive (via a service
+account — no per-user login needed) if B2 isn't configured, and only
+falls back to local disk if neither is set up.
 
 Why this exists: local disk on Render (and most PaaS free/starter tiers)
 is ephemeral — anything written to it is wiped on the next deploy or
-restart. Files uploaded to Drive instead persist regardless of how often
-the app redeploys. Local disk remains the fallback so nothing breaks in a
-dev environment where Drive credentials haven't been set up.
+restart. Files uploaded to B2 or Drive instead persist regardless of how
+often the app redeploys. Local disk remains the fallback so nothing
+breaks in a dev environment where no cloud storage credentials have been
+set up.
 """
 import io
 import logging
 from typing import Optional
 
+from app.services import b2_service
 from app.services.drive_service import DriveService
 from app.exceptions import DriveAccessDenied
 from app.config import settings
@@ -32,16 +36,35 @@ def drive_storage_available() -> bool:
 
 async def store_uploaded_file(file_bytes: bytes, filename: str, mime_type: str, subfolder: str) -> dict:
     """
-    Saves an uploaded file and returns {"url": ..., "storage": "drive" | "local"}.
+    Saves an uploaded file and returns {"url": ..., "storage": "b2" | "drive" | "local"}.
 
+    - "b2": `url` is this app's own /api/v1/files/b2/{key} endpoint,
+      which redirects to a freshly-generated presigned Backblaze B2 URL
+      on every visit. Persists across redeploys and, unlike Drive, has
+      no timed credential expiry — see b2_service.py's docstring for why
+      it's a private bucket + redirect instead of a plain public link.
     - "drive": `url` is a public (anyone-with-the-link) Google Drive view
-      link. Persists across redeploys.
+      link. Persists across redeploys, but see b2_service.py's docstring
+      for why this can silently stop working after ~7 days if the OAuth
+      app is still in Google's "Testing" publishing status.
     - "local": `url` is the existing `/uploads/<subfolder>/<filename>`
       relative path served by the app's own StaticFiles mount. Does NOT
       persist across a Render redeploy without a Persistent Disk — this
       path only exists so local development keeps working without any
-      Drive setup.
+      cloud storage set up.
     """
+    if b2_service.b2_configured():
+        try:
+            key = f"{subfolder}/{filename}"
+            await b2_service.upload_file(file_bytes, key, mime_type or "application/octet-stream")
+            # Private bucket, so there's no plain public URL for this
+            # object — point at our own redirect endpoint instead, which
+            # mints a fresh short-lived presigned URL on every visit.
+            url = f"{settings.BASE_URL}/api/v1/files/b2/{key}"
+            return {"url": url, "storage": "b2"}
+        except Exception as e:
+            logger.warning(f"B2 upload failed, falling back to Drive/local: {e}")
+
     try:
         credentials = DriveService.get_service_account_credentials()
         file_obj = io.BytesIO(file_bytes)
