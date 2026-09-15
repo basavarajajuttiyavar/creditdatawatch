@@ -13,6 +13,7 @@ routes below, same pattern as sales_invoices' scan flow.
 from datetime import datetime
 from typing import Annotated, Optional
 from uuid import uuid4
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Form, File, UploadFile, Request
 from sqlalchemy import select, func, and_
@@ -30,6 +31,8 @@ from app.schemas.vendor_invoice import (
     VendorInvoiceResponse,
 )
 from app.utils.response import ResponseFormatter
+
+logger = logging.getLogger(__name__)
 
 VENDOR_INVOICE_NOT_FOUND_ERROR = "Vendor invoice not found"
 VENDOR_INVOICE_FEATURE = "CREDIT_MANAGEMENT"  # same subscription gate as sales invoices
@@ -253,6 +256,49 @@ async def scan_vendor_invoice_pdf(
     return ResponseFormatter.create_success(data=result)
 
 
+async def _send_immediate_reminder_if_due(db: AsyncSession, invoice: VendorInvoice, current_user: User) -> None:
+    """
+    Sends today's payment reminder right away if this invoice already
+    falls inside the configured reminder window, instead of making the
+    person wait for the next scheduled daily run (10:00 AM IST — see
+    _daily_tasks_runner in main.py) to get the first email. That daily
+    task takes over sending it again every day after this one, until
+    the bill is marked Paid — this is purely so a bill that's ALREADY
+    close to due when it's added doesn't sit silent for up to 24 hours
+    first.
+    """
+    if not invoice or not invoice.payment_due_date:
+        return
+    try:
+        from datetime import timedelta, timezone
+        from app.models import AppSettings
+        from app.services.email_service import EmailService
+
+        settings_id = getattr(current_user, "company_id", None) or f"user:{current_user.id}"
+        result = await db.execute(select(AppSettings).where(AppSettings.id == settings_id))
+        app_settings = result.scalars().first()
+        reminder_email = app_settings.vendor_reminder_email if app_settings else None
+        if not reminder_email:
+            return
+        reminder_days_before = (app_settings.vendor_reminder_days_before if app_settings else None) or 5
+
+        cutoff = (datetime.now(timezone.utc) + timedelta(days=reminder_days_before)).date()
+        if invoice.status == "Paid" or invoice.payment_due_date >= cutoff:
+            return
+
+        due_date_str = invoice.payment_due_date.isoformat()
+        amount_str = f"₹{invoice.total:,.2f}"
+        subject = f"Payment Reminder: Vendor Bill {invoice.invoice_number} due on {due_date_str}"
+        body = (
+            f"This is an automatic reminder that the bill from {invoice.vendor_name} "
+            f"(Invoice {invoice.invoice_number}) for {amount_str} is due on {due_date_str}. "
+            f"Please arrange payment. This reminder will repeat daily until the bill is marked Paid."
+        )
+        await EmailService().send_email(reminder_email, subject, body)
+    except Exception as e:
+        logger.warning(f"[REMINDER] Failed to send immediate reminder for new vendor invoice: {e}")
+
+
 @router.post("")
 async def create_vendor_invoice(
     payload: VendorInvoiceCreate,
@@ -323,6 +369,7 @@ async def create_vendor_invoice(
     await db.commit()
 
     invoice = await _get_owned_invoice(db, invoice.id, current_user.id)
+    await _send_immediate_reminder_if_due(db, invoice, current_user)
     return success_response(data=serialize_vendor_invoice(invoice), message="Vendor invoice recorded")
 
 

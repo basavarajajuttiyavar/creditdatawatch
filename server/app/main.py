@@ -1079,8 +1079,8 @@ from app.services.notification_service import NotificationService
 async def _daily_tasks_runner():
     while True:
         now = datetime.now(timezone.utc)
-        # compute next 2 AM UTC
-        next_run = now.replace(hour=2, minute=0, second=0, microsecond=0)
+        # 10:00 AM IST = 04:30 UTC (IST is UTC+5:30, fixed offset, no DST)
+        next_run = now.replace(hour=4, minute=30, second=0, microsecond=0)
         if next_run <= now:
             next_run += timedelta(days=1)
         delay = (next_run - now).total_seconds()
