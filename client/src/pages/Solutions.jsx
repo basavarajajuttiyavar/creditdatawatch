@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import PropTypes from 'prop-types'
 import FeatureCardGrid from '../components/marketing/FeatureCardGrid'
 import HeroTileGrid from '../components/home/HeroTileGrid'
+import CollapsibleSection from '../components/ui/CollapsibleSection'
 
 function FAQSection({ faqs }) {
   const [open, setOpen] = useState(null)
@@ -75,6 +76,12 @@ export default function Solutions() {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [location.hash])
 
+  // Each section is now collapsed by default, matching the Services page
+  // pattern — except whichever one the URL hash points to (so a link
+  // like /solutions#msme-solutions lands on an already-expanded
+  // section), or B2B Solutions if there's no hash at all.
+  const initialOpenId = location.hash ? location.hash.slice(1) : 'b2b-solutions'
+
   return (
     <div className="min-h-screen bg-gray-50">
 
@@ -113,16 +120,7 @@ export default function Solutions() {
       </section>
 
       {/* SECTION 1 — B2B Solutions */}
-      <section id="b2b-solutions" className="py-8 px-4 bg-white" style={{ marginBottom: '24px' }}>
-        <div className="max-w-5xl mx-auto">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="text-3xl">🏢</span>
-            <div>
-              <h2 style={{ fontSize: '28px', fontWeight: 700, color: '#0F172A' }}>B2B Solutions</h2>
-              <div style={{ width: '48px', height: '3px', backgroundColor: '#F59E0B', marginTop: '4px' }}></div>
-            </div>
-          </div>
-
+      <CollapsibleSection id="b2b-solutions" icon="🏢" title="B2B Solutions" bg="bg-white" defaultOpen={initialOpenId === 'b2b-solutions'}>
           <div className="space-y-3">
             <h3 style={{ fontSize: '18px', fontWeight: 500, color: '#1a3c6e' }}>
               Empowering Enterprises through Strategic B2B Innovation
@@ -151,20 +149,10 @@ export default function Solutions() {
             <h3 style={{ fontSize: '14px', fontWeight: 500 }} className="text-xl font-bold text-gray-800 mb-4">Frequently Asked Questions</h3>
             <FAQSection faqs={b2bFaqs} />
           </div>
-        </div>
-      </section>
+      </CollapsibleSection>
 
       {/* SECTION 2 — MSME Solutions */}
-      <section id="msme-solutions" className="py-8 px-4 bg-gray-50" style={{ marginBottom: '24px' }}>
-        <div className="max-w-5xl mx-auto">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="text-3xl">🏭</span>
-            <div>
-              <h2 style={{ fontSize: '28px', fontWeight: 700, color: '#0F172A' }}>MSME Solutions</h2>
-              <div style={{ width: '48px', height: '3px', backgroundColor: '#F59E0B', marginTop: '4px' }}></div>
-            </div>
-          </div>
-
+      <CollapsibleSection id="msme-solutions" icon="🏭" title="MSME Solutions" bg="bg-gray-50" defaultOpen={initialOpenId === 'msme-solutions'}>
           <div className="space-y-3">
             <h3 style={{ fontSize: '18px', fontWeight: 500, color: '#1a3c6e' }}>
               Driving National Growth: The Power of Indian MSMEs
@@ -193,20 +181,10 @@ export default function Solutions() {
             <h3 style={{ fontSize: '14px', fontWeight: 500 }} className="text-xl font-bold text-gray-800 mb-4">Frequently Asked Questions</h3>
             <FAQSection faqs={msmeFaqs} />
           </div>
-        </div>
-      </section>
+      </CollapsibleSection>
 
       {/* SECTION 3 — Business Credit */}
-      <section id="business-credit" className="py-8 px-4 bg-white" style={{ marginBottom: '24px' }}>
-        <div className="max-w-5xl mx-auto">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="text-3xl">📊</span>
-            <div>
-              <h2 style={{ fontSize: '28px', fontWeight: 700, color: '#0F172A' }}>Business Credit</h2>
-              <div style={{ width: '48px', height: '3px', backgroundColor: '#F59E0B', marginTop: '4px' }}></div>
-            </div>
-          </div>
-
+      <CollapsibleSection id="business-credit" icon="📊" title="Business Credit" bg="bg-white" defaultOpen={initialOpenId === 'business-credit'}>
           <div className="space-y-3">
             <h3 style={{ fontSize: '18px', fontWeight: 500, color: '#1a3c6e' }}>
               Advanced Credit Intelligence with Automated Recovery Tools
@@ -228,20 +206,10 @@ export default function Solutions() {
             <h3 style={{ fontSize: '14px', fontWeight: 500 }} className="text-xl font-bold text-gray-800 mb-4">Frequently Asked Questions</h3>
             <FAQSection faqs={businessCreditFaqs} />
           </div>
-        </div>
-      </section>
+      </CollapsibleSection>
 
       {/* SECTION 4 — Business Debt */}
-      <section id="business-debt" className="py-8 px-4 bg-gray-50">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="text-3xl">⚖️</span>
-            <div>
-              <h2 style={{ fontSize: '28px', fontWeight: 700, color: '#0F172A' }}>Business Debt</h2>
-              <div style={{ width: '48px', height: '3px', backgroundColor: '#F59E0B', marginTop: '4px' }}></div>
-            </div>
-          </div>
-
+      <CollapsibleSection id="business-debt" icon="⚖️" title="Business Debt" bg="bg-gray-50" defaultOpen={initialOpenId === 'business-debt'}>
           <div className="space-y-3">
             <h3 style={{ fontSize: '18px', fontWeight: 500, color: '#1a3c6e' }}>
               Managing Business Debts with CreditDataWatch
@@ -263,8 +231,7 @@ export default function Solutions() {
             <h3 style={{ fontSize: '14px', fontWeight: 500 }} className="text-xl font-bold text-gray-800 mb-4">Frequently Asked Questions</h3>
             <FAQSection faqs={businessDebtFaqs} />
           </div>
-        </div>
-      </section>
+      </CollapsibleSection>
 
     </div>
   )

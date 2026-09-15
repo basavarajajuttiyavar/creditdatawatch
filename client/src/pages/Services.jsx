@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import PropTypes from 'prop-types'
 import FeatureCardGrid from '../components/marketing/FeatureCardGrid'
 import HeroTileGrid from '../components/home/HeroTileGrid'
+import CollapsibleSection from '../components/ui/CollapsibleSection'
 
 function FAQSection({ faqs }) {
   const [open, setOpen] = useState(null)
@@ -48,43 +49,6 @@ FAQSection.propTypes = {
   })).isRequired
 }
 
-// Shared expand/collapse wrapper so every service segment (Report Overdue
-// Payer, Credit Management, Partners Credit Overdue Report, Finalization
-// Steps) follows the same structure and interaction pattern.
-function CollapsibleSection({ id, icon, title, defaultOpen = false, bg = 'bg-white', children }) {
-  const [open, setOpen] = useState(defaultOpen)
-  return (
-    <section id={id} className={`py-8 px-4 ${bg} border-b border-gray-200`}>
-      <div className="max-w-5xl mx-auto">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          className="w-full flex items-center justify-between gap-3 text-left"
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">{icon}</span>
-            <div>
-              <h2 style={{ fontSize: '28px', fontWeight: 700, color: '#0F172A' }}>{title}</h2>
-              <div style={{ width: '48px', height: '3px', backgroundColor: '#F59E0B', marginTop: '4px' }}></div>
-            </div>
-          </div>
-          <span className="text-2xl font-bold text-blue-600 flex-shrink-0">{open ? '−' : '+'}</span>
-        </button>
-        {open && <div className="mt-6">{children}</div>}
-      </div>
-    </section>
-  )
-}
-
-CollapsibleSection.propTypes = {
-  id: PropTypes.string.isRequired,
-  icon: PropTypes.node.isRequired,
-  title: PropTypes.string.isRequired,
-  defaultOpen: PropTypes.bool,
-  bg: PropTypes.string,
-  children: PropTypes.node.isRequired
-}
 
 const reportOverdueFaqs = [
   { q: "Q1. Definition of a Defaulting Purchasing Party?", a: "A defaulter is a business that fails to pay its suppliers on time. CreditDataWatch offers a reliable, accessible database of these entities, compiling reports submitted exclusively by our network of GST-registered members." },
