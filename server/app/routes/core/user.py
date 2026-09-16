@@ -206,7 +206,19 @@ async def get_subscription(current_user: Annotated[User, Depends(get_current_use
     role = str(getattr(current_user.role, "value", current_user.role) or "").upper()
     if "." in role:
         role = role.split(".")[-1]
-    if role == "MASTER_ADMIN" or getattr(current_user, "subscription_bypass", False) or getattr(current_user, "full_access", False):
+    # Free lifetime bypass applies to Master Admin plus internal staff
+    # roles (Operations, Legal, Financial) who work for the platform
+    # rather than as paying customers — matching the exact same role set
+    # AccessControlService.can_access_feature already exempts from
+    # subscription checks. subscription_bypass/full_access no longer
+    # grant this on their own: those flags get set on every invited
+    # staff user (see admin.py's create-user flow) and, it turned out,
+    # could end up on ordinary company accounts too, which meant a
+    # company's real purchased subscription was never even checked
+    # here. Everyone outside this specific role list now always sees
+    # their real subscription state.
+    STAFF_BYPASS_ROLES = {"MASTER_ADMIN", "OPERATIONS", "OPERATION", "LEGAL", "FINANCIAL", "FINANCE"}
+    if role in STAFF_BYPASS_ROLES:
         from datetime import datetime
         data = {
             "id": current_user.id,
