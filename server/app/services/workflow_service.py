@@ -180,7 +180,7 @@ class WorkflowService:
                 await db.execute(text( """ 
                     INSERT INTO subscriptions 
                     (id, user_id, plan_id, status, is_active, start_date, expiry_date, approved_by, created_at, updated_at) 
-                    VALUES (:id, :uid, :pid, 'ACTIVE', true, NOW(), NOW() + (:days || ' days')::interval, 
+                    VALUES (:id, :uid, :pid, 'ACTIVE', true, NOW(), NOW() + (:days * INTERVAL '1 day'), 
                             (SELECT id FROM users WHERE email = :approver LIMIT 1), NOW(), NOW()) 
                 """), dict(id=new_sub_id, uid=user_row[0], pid=plan_row[0], 
                            days=plan_row[1], approver=approver_email)) 
