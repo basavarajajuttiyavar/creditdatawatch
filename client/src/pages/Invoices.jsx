@@ -1876,17 +1876,17 @@ export default function Invoices({ onDataChange } = {}) {
 
               <thead className="bg-gray-100">
                 <tr>
-                  <th className="p-4 text-left whitespace-nowrap">Invoice #</th>
-                  <th className="p-4 text-left whitespace-nowrap min-w-[220px]">Customer</th>
-                  <th className="p-4 text-left whitespace-nowrap">Email</th>
-                  <th className="p-4 text-left whitespace-nowrap">Mobile</th>
-                  <th className="p-4 text-left whitespace-nowrap">GSTIN</th>
-                  <th className="p-4 text-right whitespace-nowrap">Amount</th>
-                  <th className="p-4 text-left whitespace-nowrap">Due Date</th>
-                  <th className="p-4 text-left whitespace-nowrap">Days Left</th>
-                  <th className="p-4 text-left whitespace-nowrap">Status</th>
-                  <th className="p-4 text-left whitespace-nowrap">Document</th>
-                  <th className="p-4 text-right whitespace-nowrap">Actions</th>
+                  <th className="p-4 text-left whitespace-nowrap text-[8px]">Invoice #</th>
+                  <th className="p-4 text-left whitespace-nowrap text-[8px] min-w-[220px]">Customer</th>
+                  <th className="p-4 text-left whitespace-nowrap text-[8px]">Email</th>
+                  <th className="p-4 text-left whitespace-nowrap text-[8px]">Mobile</th>
+                  <th className="p-4 text-left whitespace-nowrap text-[8px]">GSTIN</th>
+                  <th className="p-4 text-right whitespace-nowrap text-[8px]">Amount</th>
+                  <th className="p-4 text-left whitespace-nowrap text-[8px]">Due Date</th>
+                  <th className="p-4 text-left whitespace-nowrap text-[8px]">Days Left</th>
+                  <th className="p-4 text-left whitespace-nowrap text-[8px]">Status</th>
+                  <th className="p-4 text-left whitespace-nowrap text-[8px]">Document</th>
+                  <th className="p-4 text-right whitespace-nowrap text-[8px]">Actions</th>
                 </tr>
               </thead>
 
@@ -1894,15 +1894,15 @@ export default function Invoices({ onDataChange } = {}) {
                 {displayRows.map(invoice => (
                   <tr
                     key={invoice.id}
-                    className={`border-t ${invoice.archived ? 'opacity-60' : ''}`}
+                    className={`border-t text-[8px] ${invoice.archived ? 'opacity-60' : ''}`}
                   >
-                    <td className="p-4">
+                    <td className="p-4 text-[8px]">
                       <div className="font-medium">
                         {invoice.invoice_number}
                         {invoice.legal_notice_sent_at && <span className="ml-2">⚖️</span>}
                       </div>
                       {approvalBadge(invoice) && (
-                        <div className="text-[11px] mt-0.5">{approvalBadge(invoice)}</div>
+                        <div className="mt-0.5">{approvalBadge(invoice)}</div>
                       )}
                     </td>
 
@@ -1910,43 +1910,43 @@ export default function Invoices({ onDataChange } = {}) {
                       {invoice.counterparty_name}
                     </td>
 
-                    <td className="p-4 text-sm text-gray-600">
+                    <td className="p-4 text-[8px] text-gray-600">
                       {invoice.counterparty_email || '—'}
                     </td>
 
-                    <td className="p-4 text-sm text-gray-600">
+                    <td className="p-4 text-[8px] text-gray-600">
                       {invoice.counterparty_phone || '—'}
                     </td>
 
-                    <td className="p-4 whitespace-nowrap">
-                      <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded border border-gray-200 text-gray-700">{invoice.counterparty_gstin || '—'}</span>
+                    <td className="p-4 whitespace-nowrap text-[8px]">
+                      <span className="font-mono bg-gray-100 px-2 py-1 rounded border border-gray-200 text-gray-700">{invoice.counterparty_gstin || '—'}</span>
                     </td>
 
-                    <td className="p-4 text-right font-semibold whitespace-nowrap">
+                    <td className="p-4 text-right font-semibold whitespace-nowrap text-[8px]">
                       {money(invoice.total, invoice.currency)}
                     </td>
 
-                    <td className="p-4 whitespace-nowrap">
+                    <td className="p-4 whitespace-nowrap text-[8px]">
                       {formatDate(invoice.payment_due_date)}
                     </td>
 
-                    <td className="p-4 whitespace-nowrap">
+                    <td className="p-4 whitespace-nowrap text-[8px]">
                       {getDaysLeftBadge(invoice)}
                     </td>
 
-                    <td className="p-4 whitespace-nowrap">
+                    <td className="p-4 whitespace-nowrap text-[8px]">
                       {getStatusPill(invoice)}
                     </td>
 
-                    <td className="p-4">
+                    <td className="p-4 text-[8px]">
                       {invoice.document_url ? (
                         <a href={invoice.document_url.startsWith('http') ? invoice.document_url : `${STATIC_BASE_URL}${invoice.document_url}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                           📄 View
                         </a>
                       ) : uploadingDocForInvoiceId === invoice.id ? (
-                        <span className="text-gray-400 text-xs">Uploading&hellip;</span>
+                        <span className="text-gray-400">Uploading&hellip;</span>
                       ) : (
-                        <label className="text-primary-600 hover:text-primary-800 flex items-center gap-1 cursor-pointer text-sm">
+                        <label className="text-primary-600 hover:text-primary-800 flex items-center gap-1 cursor-pointer">
                           <span>📎</span> Upload
                           <input
                             type="file"
