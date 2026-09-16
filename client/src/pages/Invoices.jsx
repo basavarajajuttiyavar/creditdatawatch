@@ -1876,17 +1876,17 @@ export default function Invoices({ onDataChange } = {}) {
 
               <thead className="bg-gray-100">
                 <tr>
-                  <th className="p-4 text-left whitespace-nowrap text-[8px]">Invoice #</th>
-                  <th className="p-4 text-left whitespace-nowrap text-[8px] min-w-[220px]">Customer</th>
-                  <th className="p-4 text-left whitespace-nowrap text-[8px]">Email</th>
-                  <th className="p-4 text-left whitespace-nowrap text-[8px]">Mobile</th>
-                  <th className="p-4 text-left whitespace-nowrap text-[8px]">GSTIN</th>
-                  <th className="p-4 text-right whitespace-nowrap text-[8px]">Amount</th>
-                  <th className="p-4 text-left whitespace-nowrap text-[8px]">Due Date</th>
-                  <th className="p-4 text-left whitespace-nowrap text-[8px]">Days Left</th>
-                  <th className="p-4 text-left whitespace-nowrap text-[8px]">Status</th>
-                  <th className="p-4 text-left whitespace-nowrap text-[8px]">Document</th>
-                  <th className="p-4 text-right whitespace-nowrap text-[8px]">Actions</th>
+                  <th className="p-4 text-left whitespace-nowrap text-[13px]">Invoice #</th>
+                  <th className="p-4 text-left whitespace-nowrap text-[13px] min-w-[220px]">Customer</th>
+                  <th className="p-4 text-left whitespace-nowrap text-[13px]">Email</th>
+                  <th className="p-4 text-left whitespace-nowrap text-[13px]">Mobile</th>
+                  <th className="p-4 text-left whitespace-nowrap text-[13px]">GSTIN</th>
+                  <th className="p-4 text-right whitespace-nowrap text-[13px]">Amount</th>
+                  <th className="p-4 text-left whitespace-nowrap text-[13px]">Due Date</th>
+                  <th className="p-4 text-left whitespace-nowrap text-[13px]">Days Left</th>
+                  <th className="p-4 text-left whitespace-nowrap text-[13px]">Status</th>
+                  <th className="p-4 text-left whitespace-nowrap text-[13px]">Document</th>
+                  <th className="p-4 text-right whitespace-nowrap text-[13px]">Actions</th>
                 </tr>
               </thead>
 
@@ -1894,9 +1894,9 @@ export default function Invoices({ onDataChange } = {}) {
                 {displayRows.map(invoice => (
                   <tr
                     key={invoice.id}
-                    className={`border-t text-[8px] ${invoice.archived ? 'opacity-60' : ''}`}
+                    className={`border-t text-[13px] ${invoice.archived ? 'opacity-60' : ''}`}
                   >
-                    <td className="p-4 text-[8px]">
+                    <td className="p-4 text-[13px]">
                       <div className="font-medium">
                         {invoice.invoice_number}
                         {invoice.legal_notice_sent_at && <span className="ml-2">⚖️</span>}
@@ -1906,39 +1906,39 @@ export default function Invoices({ onDataChange } = {}) {
                       )}
                     </td>
 
-                    <td className="p-4 text-[8px]">
+                    <td className="p-4 text-[13px]">
                       {invoice.counterparty_name}
                     </td>
 
-                    <td className="p-4 text-[8px] text-gray-600">
+                    <td className="p-4 text-[13px] text-gray-600">
                       {invoice.counterparty_email || '—'}
                     </td>
 
-                    <td className="p-4 text-[8px] text-gray-600">
+                    <td className="p-4 text-[13px] text-gray-600">
                       {invoice.counterparty_phone || '—'}
                     </td>
 
-                    <td className="p-4 whitespace-nowrap text-[8px]">
+                    <td className="p-4 whitespace-nowrap text-[13px]">
                       <span className="font-mono bg-gray-100 px-2 py-1 rounded border border-gray-200 text-gray-700">{invoice.counterparty_gstin || '—'}</span>
                     </td>
 
-                    <td className="p-4 text-right font-semibold whitespace-nowrap text-[8px]">
+                    <td className="p-4 text-right font-semibold whitespace-nowrap text-[13px]">
                       {money(invoice.total, invoice.currency)}
                     </td>
 
-                    <td className="p-4 whitespace-nowrap text-[8px]">
+                    <td className="p-4 whitespace-nowrap text-[13px]">
                       {formatDate(invoice.payment_due_date)}
                     </td>
 
-                    <td className="p-4 whitespace-nowrap text-[8px]">
+                    <td className="p-4 whitespace-nowrap text-[13px]">
                       {getDaysLeftBadge(invoice)}
                     </td>
 
-                    <td className="p-4 whitespace-nowrap text-[8px]">
+                    <td className="p-4 whitespace-nowrap text-[13px]">
                       {getStatusPill(invoice)}
                     </td>
 
-                    <td className="p-4 text-[8px]">
+                    <td className="p-4 text-[13px]">
                       {invoice.document_url ? (
                         <a href={invoice.document_url.startsWith('http') ? invoice.document_url : `${STATIC_BASE_URL}${invoice.document_url}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                           📄 View
