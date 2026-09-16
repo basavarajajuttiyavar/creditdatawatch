@@ -1877,7 +1877,7 @@ export default function Invoices({ onDataChange } = {}) {
               <thead className="bg-gray-100">
                 <tr>
                   <th className="p-4 text-left whitespace-nowrap">Invoice #</th>
-                  <th className="p-4 text-left whitespace-nowrap">Customer</th>
+                  <th className="p-4 text-left whitespace-nowrap min-w-[220px]">Customer</th>
                   <th className="p-4 text-left whitespace-nowrap">Email</th>
                   <th className="p-4 text-left whitespace-nowrap">Mobile</th>
                   <th className="p-4 text-left whitespace-nowrap">GSTIN</th>
@@ -1906,7 +1906,7 @@ export default function Invoices({ onDataChange } = {}) {
                       )}
                     </td>
 
-                    <td className="p-4">
+                    <td className="p-4 text-[8px]">
                       {invoice.counterparty_name}
                     </td>
 
