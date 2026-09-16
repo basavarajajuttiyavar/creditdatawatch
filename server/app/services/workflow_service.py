@@ -156,13 +156,45 @@ class WorkflowService:
                 WHERE id=:id 
             """), {"id": sub_data['id']}) 
 
-            await db.execute(text( """ 
-                UPDATE users SET 
-                    subscription_status='ACTIVE', 
-                    subscription_bypass=true, 
-                    full_access=true 
-                WHERE email=:email 
-            """), {"email": sub_data['user_email']}) 
+            # Create the actual, time-limited Subscription row instead of
+            # just flipping subscription_bypass/full_access on the user
+            # to true. That used to be this step's only effect — but
+            # those two flags are a permanent, un-timed bypass meant for
+            # internal staff (Master Admin, Operations, Legal,
+            # Financial), not a record of what plan a paying customer
+            # bought or when it expires. Setting them on an approved
+            # customer is what caused approved company accounts to show
+            # a fake permanent "ADMIN_FREE" plan with no expiry date
+            # instead of their real plan and a real expiry date — this
+            # now matches the plan the request was actually for and
+            # gives it that plan's real validity period.
+            plan_row = (await db.execute(text(""" 
+                SELECT id, validity_days FROM plans WHERE display_name = :plan_name LIMIT 1 
+            """), {"plan_name": sub_data['plan_name']})).fetchone() 
+            user_row = (await db.execute(text(""" 
+                SELECT id FROM users WHERE email = :email 
+            """), {"email": sub_data['user_email']})).fetchone() 
+
+            if plan_row and user_row: 
+                new_sub_id = str(uuid.uuid4()) 
+                await db.execute(text( """ 
+                    INSERT INTO subscriptions 
+                    (id, user_id, plan_id, status, is_active, start_date, expiry_date, approved_by, created_at, updated_at) 
+                    VALUES (:id, :uid, :pid, 'ACTIVE', true, NOW(), NOW() + (:days || ' days')::interval, 
+                            (SELECT id FROM users WHERE email = :approver LIMIT 1), NOW(), NOW()) 
+                """), dict(id=new_sub_id, uid=user_row[0], pid=plan_row[0], 
+                           days=plan_row[1], approver=approver_email)) 
+            else: 
+                # Fall back to the old behavior only if the plan or user
+                # genuinely can't be found, so an approval never silently
+                # does nothing at all. 
+                await db.execute(text( """ 
+                    UPDATE users SET 
+                        subscription_status='ACTIVE', 
+                        subscription_bypass=true, 
+                        full_access=true 
+                    WHERE email=:email 
+                """), {"email": sub_data['user_email']}) 
 
         await db.execute(text( """ 
             UPDATE workflow_items SET 

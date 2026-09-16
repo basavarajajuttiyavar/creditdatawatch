@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional, Dict, Any
-from app.models import Payment, Plan, User, PaymentStatus, PaymentMethod
+from app.models import Payment, Plan, User, PaymentStatus, PaymentMethod, MembershipStatus
 from app.exceptions import PlanNotFound, UserNotFound
 from app.services.subscription_service import SubscriptionService
 import logging

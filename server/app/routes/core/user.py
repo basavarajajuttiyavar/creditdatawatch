@@ -228,11 +228,42 @@ async def get_subscription(current_user: Annotated[User, Depends(get_current_use
             "expiry_date": None,
         }
         return ResponseFormatter.create_success(data=data)
-    stmt = select(Subscription).where(Subscription.user_id == current_user.id)
+    from sqlalchemy.orm import selectinload
+    # Order by created_at desc + eager-load the plan relationship:
+    # (1) a user can accumulate more than one Subscription row over time
+    # (old expired/rejected ones plus the current one), and without an
+    # explicit order the previous plain `.first()` could return an old
+    # row instead of the current one; (2) accessing `sub.plan` lazily
+    # here, outside the query itself, raises a MissingGreenlet error
+    # under async SQLAlchemy unless it's eager-loaded up front.
+    stmt = (
+        select(Subscription)
+        .where(Subscription.user_id == current_user.id)
+        .options(selectinload(Subscription.plan))
+        .order_by(Subscription.created_at.desc())
+    )
     result = await db.execute(stmt)
     sub = result.scalars().first()
     if not sub:
         return ResponseFormatter.create_success(data=None)
-    return ResponseFormatter.create_success(data=SubscriptionResponse.model_validate(sub).__dict__)
+    # `plan` is returned as the plan's display name (a plain string, e.g.
+    # "Base", "Royal") rather than the nested Plan object the ORM
+    # relationship actually holds — the frontend (Membership.jsx,
+    # InvoiceDashboard.jsx) calls `.toUpperCase()` directly on this
+    # field, which would throw on an object.
+    data = {
+        "id": sub.id,
+        "user_id": sub.user_id,
+        "plan_id": sub.plan_id,
+        "plan": sub.plan.display_name if sub.plan else None,
+        "status": sub.status,
+        "is_active": sub.is_active,
+        "start_date": sub.start_date,
+        "expiry_date": sub.expiry_date,
+        "payment_id": sub.payment_id,
+        "created_at": sub.created_at,
+        "updated_at": sub.updated_at,
+    }
+    return ResponseFormatter.create_success(data=data)
 
 
