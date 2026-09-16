@@ -1,7 +1,7 @@
 """
 Main FastAPI application
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -1076,6 +1076,192 @@ from .models import PurchaseOrder, Notification, User
 from app.services.email_service import EmailService
 from app.services.notification_service import NotificationService
 
+async def run_daily_tasks():
+    """
+    The actual daily-tasks work (BCI recalc, PO due/overdue notifications,
+    vendor invoice reminders, etc.) — pulled out of the sleep-loop below
+    so it can also be triggered directly over HTTP by an external cron
+    service. That matters because Render's free/starter web service tier
+    spins the process down after ~15 minutes with no incoming HTTP
+    traffic, and a plain in-process asyncio.sleep() loop like
+    _daily_tasks_runner simply stops running while the service is
+    asleep — it does NOT wake back up on its own at the scheduled time,
+    only the next time an actual HTTP request happens to arrive. An
+    external cron hitting /api/v1/cron/run-daily-tasks at 10:00 AM IST
+    both wakes the service up AND runs this directly, so reminders go
+    out reliably regardless of whether anyone happened to be using the
+    site right at 10 AM.
+    """
+    try:
+        # run BCI recalc
+        async with AsyncSessionLocal() as session:
+            await CredibilityService.recalc_all(session)
+            await session.commit()
+            # due in 3 days notifications
+            cutoff_start = datetime.now(timezone.utc)
+            cutoff_end = cutoff_start + timedelta(days=3)
+            stmt = select(PurchaseOrder, User).join(User, PurchaseOrder.user_id == User.id).where(
+                (PurchaseOrder.payment_completed_at.is_(None)) &
+                (PurchaseOrder.due_date >= cutoff_start) &
+                (PurchaseOrder.due_date < cutoff_end)
+            )
+            res = await session.execute(stmt)
+            for po, user in res.all():
+                await NotificationService.send(
+                    db=session,
+                    to_email=user.email,
+                    title=f"⚠️ PO {po.po_number} Due Soon",
+                    message=f"PO {po.po_number} is due on {po.due_date.date()}",
+                    ntype="PO_DUE_SOON",
+                    action_url="http://localhost:3001/dashboard/user",
+                    related_po_id=po.id
+                )
+            # overdue notifications
+            stmt2 = select(PurchaseOrder, User).join(User, PurchaseOrder.user_id == User.id).where(
+                (PurchaseOrder.payment_completed_at.is_(None)) &
+                (PurchaseOrder.due_date < datetime.now(timezone.utc))
+            )
+            res2 = await session.execute(stmt2)
+            for po, user in res2.all():
+                await NotificationService.send(
+                    db=session,
+                    to_email=user.email,
+                    title=f"🚨 PO {po.po_number} Overdue",
+                    message=f"PO {po.po_number} is overdue since {po.due_date.date()}",
+                    ntype="PO_OVERDUE",
+                    action_url="http://localhost:3001/dashboard/user",
+                    related_po_id=po.id
+                )
+            # Vendor reminders per admin config
+            try:
+                from app.models import POReminderConfig
+                cfg_res = await session.execute(select(POReminderConfig))
+                cfg = cfg_res.scalars().first()
+                before_days = (cfg.before_days or []) if cfg else []
+                after_daily = bool(cfg.after_due_daily_enabled) if cfg else False
+
+                custom_subject = cfg.reminder_subject if cfg else None
+                custom_body = cfg.reminder_body if cfg else None
+
+                def format_vendor_email(template, po, default_val):
+                    if not template:
+                        return default_val
+                    return template.replace("{vendor_name}", po.vendor or "") \
+                                   .replace("{amount}", f"₹{po.amount:,.2f}") \
+                                   .replace("{due_date}", str(po.due_date.date())) \
+                                   .replace("{po_number}", po.po_number or "")
+
+                # Send BEFORE due date reminders
+                if before_days:
+                    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+                    for d in before_days:
+                        try:
+                            delta = int(d)
+                        except Exception:
+                            continue
+                        target_start = today + timedelta(days=delta)
+                        target_end = target_start + timedelta(days=1)
+                        q = select(PurchaseOrder).where(
+                            (PurchaseOrder.payment_completed_at.is_(None)) &
+                            (PurchaseOrder.due_date >= target_start) &
+                            (PurchaseOrder.due_date < target_end)
+                        )
+                        po_res = await session.execute(q)
+                        for po in po_res.scalars().all():
+                            if po.vendor_email:
+                                subject = format_vendor_email(custom_subject, po, f"Reminder: PO {po.po_number} due in {delta} day(s)")
+                                body = format_vendor_email(custom_body, po, f"PO {po.po_number} to {po.vendor} amount {po.amount} is due on {po.due_date.date()}.")
+                                try:
+                                    await EmailService().send_email(po.vendor_email, subject, body)
+                                except Exception as e:
+                                    logger.warning(f"[REMINDER] Failed to send BEFORE-due reminder for PO {po.po_number}: {e}")
+                # Send AFTER due date daily reminders
+                if after_daily:
+                    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+                    q2 = select(PurchaseOrder).where(
+                        (PurchaseOrder.payment_completed_at.is_(None)) &
+                        (PurchaseOrder.due_date < today_start) &
+                        (PurchaseOrder.status != "Closed")
+                    )
+                    po_res2 = await session.execute(q2)
+                    for po in po_res2.scalars().all():
+                        if po.vendor_email:
+                            subject = format_vendor_email(custom_subject, po, f"Overdue: PO {po.po_number}")
+                            body = format_vendor_email(custom_body, po, f"PO {po.po_number} has been overdue since {po.due_date.date()}. Kindly process immediately.")
+                            try:
+                                await EmailService().send_email(po.vendor_email, subject, body)
+                            except Exception as e:
+                                logger.warning(f"[REMINDER] Failed to send AFTER-due reminder for PO {po.po_number}: {e}")
+
+                # Process SCHEDULED reminders
+                pass
+            except Exception as e:
+                logger.error(f"Error in background reminder tasks: {e}")
+
+            # Vendor invoice (Accounts Payable) reminders — starts a
+            # per-company configurable number of days before the due
+            # date (AppSettings.vendor_reminder_days_before, defaults
+            # to 5) and repeats every day this task runs (once daily)
+            # until the bill is marked Paid, sent to that company's
+            # OWN reminder email (AppSettings.vendor_reminder_email).
+            #
+            # IMPORTANT: settings rows here are scoped per company
+            # (AppSettings.id = company_id, or "user:{user_id}" for
+            # users with no company) — see get_vendor_invoice_settings
+            # in vendor_invoices.py for why. An earlier version of
+            # this used one single shared settings row for every
+            # company on the platform, which meant every company's
+            # vendor-bill reminders were silently sent to whichever
+            # one email address was saved last, regardless of whose
+            # bill it actually was — a real cross-tenant data leak,
+            # not just a cosmetic bug. Each company is now looped
+            # over separately with its own email and its own
+            # days-before threshold, matched to only ITS OWN invoices.
+            try:
+                from app.models import VendorInvoice, AppSettings
+                vi_cfg_res = await session.execute(
+                    select(AppSettings).where(AppSettings.vendor_reminder_email.isnot(None))
+                )
+                for vi_cfg in vi_cfg_res.scalars().all():
+                    reminder_email = vi_cfg.vendor_reminder_email
+                    if not reminder_email:
+                        continue
+                    reminder_days_before = vi_cfg.vendor_reminder_days_before or 5
+                    cutoff = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=reminder_days_before)
+
+                    if vi_cfg.id.startswith("user:"):
+                        scope_user_id = vi_cfg.id.split("user:", 1)[1]
+                        scope_filter = (VendorInvoice.company_id.is_(None)) & (VendorInvoice.user_id == scope_user_id)
+                    else:
+                        scope_filter = VendorInvoice.company_id == vi_cfg.id
+
+                    vi_q = select(VendorInvoice).where(
+                        (VendorInvoice.status != "Paid") &
+                        (VendorInvoice.archived.is_(False) | VendorInvoice.archived.is_(None)) &
+                        (VendorInvoice.payment_due_date < cutoff.date()) &
+                        scope_filter
+                    )
+                    vi_res = await session.execute(vi_q)
+                    for vi in vi_res.scalars().all():
+                        due_date_str = vi.payment_due_date.isoformat() if vi.payment_due_date else "N/A"
+                        amount_str = f"₹{vi.total:,.2f}"
+                        subject = f"Payment Reminder: Vendor Bill {vi.invoice_number} due on {due_date_str}"
+                        body = (
+                            f"This is an automatic reminder that the bill from {vi.vendor_name} "
+                            f"(Invoice {vi.invoice_number}) for {amount_str} is due on {due_date_str}. "
+                            f"Please arrange payment. This reminder will repeat daily until the bill is marked Paid."
+                        )
+                        try:
+                            await EmailService().send_email(reminder_email, subject, body)
+                        except Exception as e:
+                            logger.warning(f"[REMINDER] Failed to send vendor invoice reminder for {vi.invoice_number}: {e}")
+            except Exception as e:
+                logger.error(f"Error in vendor invoice reminder task: {e}")
+            await session.commit()
+    except Exception as e:
+        logger.error(f"Daily tasks failed: {e}")
+
+
 async def _daily_tasks_runner():
     while True:
         now = datetime.now(timezone.utc)
@@ -1085,174 +1271,7 @@ async def _daily_tasks_runner():
             next_run += timedelta(days=1)
         delay = (next_run - now).total_seconds()
         await asyncio.sleep(delay)
-        try:
-            # run BCI recalc
-            async with AsyncSessionLocal() as session:
-                await CredibilityService.recalc_all(session)
-                await session.commit()
-                # due in 3 days notifications
-                cutoff_start = datetime.now(timezone.utc)
-                cutoff_end = cutoff_start + timedelta(days=3)
-                stmt = select(PurchaseOrder, User).join(User, PurchaseOrder.user_id == User.id).where(
-                    (PurchaseOrder.payment_completed_at.is_(None)) &
-                    (PurchaseOrder.due_date >= cutoff_start) &
-                    (PurchaseOrder.due_date < cutoff_end)
-                )
-                res = await session.execute(stmt)
-                for po, user in res.all():
-                    await NotificationService.send(
-                        db=session,
-                        to_email=user.email,
-                        title=f"⚠️ PO {po.po_number} Due Soon",
-                        message=f"PO {po.po_number} is due on {po.due_date.date()}",
-                        ntype="PO_DUE_SOON",
-                        action_url="http://localhost:3001/dashboard/user",
-                        related_po_id=po.id
-                    )
-                # overdue notifications
-                stmt2 = select(PurchaseOrder, User).join(User, PurchaseOrder.user_id == User.id).where(
-                    (PurchaseOrder.payment_completed_at.is_(None)) &
-                    (PurchaseOrder.due_date < datetime.now(timezone.utc))
-                )
-                res2 = await session.execute(stmt2)
-                for po, user in res2.all():
-                    await NotificationService.send(
-                        db=session,
-                        to_email=user.email,
-                        title=f"🚨 PO {po.po_number} Overdue",
-                        message=f"PO {po.po_number} is overdue since {po.due_date.date()}",
-                        ntype="PO_OVERDUE",
-                        action_url="http://localhost:3001/dashboard/user",
-                        related_po_id=po.id
-                    )
-                # Vendor reminders per admin config
-                try:
-                    from app.models import POReminderConfig
-                    cfg_res = await session.execute(select(POReminderConfig))
-                    cfg = cfg_res.scalars().first()
-                    before_days = (cfg.before_days or []) if cfg else []
-                    after_daily = bool(cfg.after_due_daily_enabled) if cfg else False
-                    
-                    custom_subject = cfg.reminder_subject if cfg else None
-                    custom_body = cfg.reminder_body if cfg else None
-
-                    def format_vendor_email(template, po, default_val):
-                        if not template:
-                            return default_val
-                        return template.replace("{vendor_name}", po.vendor or "") \
-                                       .replace("{amount}", f"₹{po.amount:,.2f}") \
-                                       .replace("{due_date}", str(po.due_date.date())) \
-                                       .replace("{po_number}", po.po_number or "")
-
-                    # Send BEFORE due date reminders
-                    if before_days:
-                        today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-                        for d in before_days:
-                            try:
-                                delta = int(d)
-                            except Exception:
-                                continue
-                            target_start = today + timedelta(days=delta)
-                            target_end = target_start + timedelta(days=1)
-                            q = select(PurchaseOrder).where(
-                                (PurchaseOrder.payment_completed_at.is_(None)) &
-                                (PurchaseOrder.due_date >= target_start) &
-                                (PurchaseOrder.due_date < target_end)
-                            )
-                            po_res = await session.execute(q)
-                            for po in po_res.scalars().all():
-                                if po.vendor_email:
-                                    subject = format_vendor_email(custom_subject, po, f"Reminder: PO {po.po_number} due in {delta} day(s)")
-                                    body = format_vendor_email(custom_body, po, f"PO {po.po_number} to {po.vendor} amount {po.amount} is due on {po.due_date.date()}.")
-                                    try:
-                                        await EmailService().send_email(po.vendor_email, subject, body)
-                                    except Exception as e:
-                                        logger.warning(f"[REMINDER] Failed to send BEFORE-due reminder for PO {po.po_number}: {e}")
-                    # Send AFTER due date daily reminders
-                    if after_daily:
-                        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-                        q2 = select(PurchaseOrder).where(
-                            (PurchaseOrder.payment_completed_at.is_(None)) &
-                            (PurchaseOrder.due_date < today_start) &
-                            (PurchaseOrder.status != "Closed")
-                        )
-                        po_res2 = await session.execute(q2)
-                        for po in po_res2.scalars().all():
-                            if po.vendor_email:
-                                subject = format_vendor_email(custom_subject, po, f"Overdue: PO {po.po_number}")
-                                body = format_vendor_email(custom_body, po, f"PO {po.po_number} has been overdue since {po.due_date.date()}. Kindly process immediately.")
-                                try:
-                                    await EmailService().send_email(po.vendor_email, subject, body)
-                                except Exception as e:
-                                    logger.warning(f"[REMINDER] Failed to send AFTER-due reminder for PO {po.po_number}: {e}")
-                    
-                    # Process SCHEDULED reminders
-                    pass
-                except Exception as e:
-                    logger.error(f"Error in background reminder tasks: {e}")
-
-                # Vendor invoice (Accounts Payable) reminders — starts a
-                # per-company configurable number of days before the due
-                # date (AppSettings.vendor_reminder_days_before, defaults
-                # to 5) and repeats every day this task runs (once daily)
-                # until the bill is marked Paid, sent to that company's
-                # OWN reminder email (AppSettings.vendor_reminder_email).
-                #
-                # IMPORTANT: settings rows here are scoped per company
-                # (AppSettings.id = company_id, or "user:{user_id}" for
-                # users with no company) — see get_vendor_invoice_settings
-                # in vendor_invoices.py for why. An earlier version of
-                # this used one single shared settings row for every
-                # company on the platform, which meant every company's
-                # vendor-bill reminders were silently sent to whichever
-                # one email address was saved last, regardless of whose
-                # bill it actually was — a real cross-tenant data leak,
-                # not just a cosmetic bug. Each company is now looped
-                # over separately with its own email and its own
-                # days-before threshold, matched to only ITS OWN invoices.
-                try:
-                    from app.models import VendorInvoice, AppSettings
-                    vi_cfg_res = await session.execute(
-                        select(AppSettings).where(AppSettings.vendor_reminder_email.isnot(None))
-                    )
-                    for vi_cfg in vi_cfg_res.scalars().all():
-                        reminder_email = vi_cfg.vendor_reminder_email
-                        if not reminder_email:
-                            continue
-                        reminder_days_before = vi_cfg.vendor_reminder_days_before or 5
-                        cutoff = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=reminder_days_before)
-
-                        if vi_cfg.id.startswith("user:"):
-                            scope_user_id = vi_cfg.id.split("user:", 1)[1]
-                            scope_filter = (VendorInvoice.company_id.is_(None)) & (VendorInvoice.user_id == scope_user_id)
-                        else:
-                            scope_filter = VendorInvoice.company_id == vi_cfg.id
-
-                        vi_q = select(VendorInvoice).where(
-                            (VendorInvoice.status != "Paid") &
-                            (VendorInvoice.archived.is_(False) | VendorInvoice.archived.is_(None)) &
-                            (VendorInvoice.payment_due_date < cutoff.date()) &
-                            scope_filter
-                        )
-                        vi_res = await session.execute(vi_q)
-                        for vi in vi_res.scalars().all():
-                            due_date_str = vi.payment_due_date.isoformat() if vi.payment_due_date else "N/A"
-                            amount_str = f"₹{vi.total:,.2f}"
-                            subject = f"Payment Reminder: Vendor Bill {vi.invoice_number} due on {due_date_str}"
-                            body = (
-                                f"This is an automatic reminder that the bill from {vi.vendor_name} "
-                                f"(Invoice {vi.invoice_number}) for {amount_str} is due on {due_date_str}. "
-                                f"Please arrange payment. This reminder will repeat daily until the bill is marked Paid."
-                            )
-                            try:
-                                await EmailService().send_email(reminder_email, subject, body)
-                            except Exception as e:
-                                logger.warning(f"[REMINDER] Failed to send vendor invoice reminder for {vi.invoice_number}: {e}")
-                except Exception as e:
-                    logger.error(f"Error in vendor invoice reminder task: {e}")
-                await session.commit()
-        except Exception as e:
-            logger.error(f"Daily tasks failed: {e}")
+        await run_daily_tasks()
 
 async def _scheduled_reminders_runner():
     """Checks for due scheduled reminders every minute"""
@@ -1422,3 +1441,30 @@ async def health_check():
     except Exception as e:
         db_status = f"unavailable: {str(e)}"
     return {"status": "ok", "service": "creditdatawatch-api", "version": "1.0.0", "db": db_status}
+
+
+@app.get("/api/v1/cron/run-daily-tasks")
+@app.post("/api/v1/cron/run-daily-tasks")
+async def trigger_daily_tasks(secret: str = Query(default="")):
+    """
+    Lets an external scheduler (cron-job.org, GitHub Actions cron, etc.)
+    run the same daily reminder/notification job the in-process
+    scheduler runs at 10:00 AM IST — see run_daily_tasks() and the
+    CRON_SECRET setting for why this exists: Render's free/starter web
+    service tier spins down after inactivity, which silently stops the
+    in-process asyncio.sleep() loop from ever firing again until the
+    next unrelated HTTP request happens to wake the service up. Hitting
+    this URL on a schedule both wakes the service and runs the job
+    directly, so reminders go out reliably regardless of site traffic.
+
+    Requires CRON_SECRET to be set in the environment and passed back as
+    ?secret=... — returns 404 (not 401/403) when CRON_SECRET is unset,
+    so the endpoint's existence isn't revealed on a deployment that
+    hasn't deliberately enabled it.
+    """
+    if not settings.CRON_SECRET:
+        raise HTTPException(status_code=404, detail="Not found")
+    if secret != settings.CRON_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid secret")
+    await run_daily_tasks()
+    return {"status": "ok", "message": "Daily tasks completed"}

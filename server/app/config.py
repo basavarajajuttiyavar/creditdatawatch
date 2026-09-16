@@ -142,6 +142,14 @@ class Settings(BaseSettings):
     HOST: str = "127.0.0.1"
     PORT: int = 8000
     ENABLE_SCHEDULER: bool = True
+    # Shared secret required by GET/POST /api/v1/cron/run-daily-tasks —
+    # lets an external cron service (e.g. cron-job.org, free) trigger
+    # the daily reminder/notification run reliably even if Render's
+    # free/starter web service tier has spun the process down from
+    # inactivity, since the in-process asyncio scheduler alone stops
+    # running whenever the service is asleep. Leave blank to disable
+    # this endpoint entirely (it 404s instead of running unauthenticated).
+    CRON_SECRET: str = ""
     # When true, ErrorHandlerMiddleware re-raises unhandled exceptions
     # instead of returning a clean JSON 500. That's useful for local
     # debugging (full traceback in the terminal), but dangerous as a
