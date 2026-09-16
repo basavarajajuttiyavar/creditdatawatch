@@ -81,19 +81,18 @@ export default function Membership() {
   const isMasterAdmin = role === 'MASTER_ADMIN' 
   const isDeveloper = role === 'DEVELOPER'
 
-  // A never-subscribed account has no `subscription` object at all — the
-  // previous fallback showed "BASE" + "Valid until: Lifetime" for that
-  // case, which reads as a real permanent free plan and directly
-  // contradicts the "Inactive" pill shown right next to it. There is no
-  // free lifetime tier; every plan is paid and time-limited (see
-  // SubscriptionService.purchase_subscription, which always sets
-  // expiry_date = purchase date + plan.validity_days), so this now says
-  // plainly that there's no active plan yet instead of implying one.
+  // Two genuinely different situations were being shown identically
+  // before: a never-subscribed account (no subscription row exists at
+  // all) versus an account with a real, active subscription that simply
+  // has no expiry_date set — like ADMIN_FREE, a special no-cost plan
+  // granted directly rather than purchased. Only the second one should
+  // ever say something like "no expiry"; the first should say there's
+  // no plan, not imply one exists.
   const hasSubscription = !!subscription
   const planName = subscription?.plan ? subscription.plan.toUpperCase() : 'No Plan'
   const validity = subscription?.expiry_date
     ? new Date(subscription.expiry_date).toLocaleDateString('en-IN')
-    : '—'
+    : (hasSubscription ? 'No expiry' : '—')
   const isActive = subscription?.is_active
 
   const handleSelectPlan = async (plan) => { 
