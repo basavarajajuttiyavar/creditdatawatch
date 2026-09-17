@@ -53,6 +53,7 @@ import InvCredibilityDetail from '../pages/InvCredibilityDetail'
 import InvoiceDashboard from '../pages/InvoiceDashboard'
 import POApprovals from '../pages/admin/POApprovals'
 import DefaulterApprovals from '../pages/admin/DefaulterApprovals'
+import ManagePlans from '../pages/admin/ManagePlans'
 import ActivityLogs from '../pages/admin/ActivityLogs'
 import Payments from '../pages/admin/Payments'
 import UserProfile from '../pages/UserProfile'
@@ -261,6 +262,15 @@ export default function AppRoutes() {
                 element={(
                   <RoleRoute allowedRoles={['MASTER_ADMIN', 'COMPANY_ADMIN', 'OPERATION', 'LEGAL', 'FINANCIAL']}>
                     <DefaulterApprovals />
+                  </RoleRoute>
+                )}
+              />
+
+              <Route
+                path="/admin/manage-plans"
+                element={(
+                  <RoleRoute allowedRoles={['MASTER_ADMIN']}>
+                    <ManagePlans />
                   </RoleRoute>
                 )}
               />

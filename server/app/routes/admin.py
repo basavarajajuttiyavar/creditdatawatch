@@ -32,10 +32,10 @@ router = APIRouter()
 @router.post("/plans")
 async def create_plan(
     req: PlanCreate,
-    admin: Annotated[User, Depends(require_admin)],
+    admin: Annotated[User, Depends(require_master_admin)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    """Create a new membership plan (admin only)"""
+    """Create a new membership plan (Master Admin only — pricing changes are higher-stakes than day-to-day admin work)"""
     plan = Plan(
         id=str(uuid.uuid4()),
         name=req.name.lower(),
@@ -64,10 +64,10 @@ async def create_plan(
 async def update_plan(
     plan_id: str,
     req: PlanUpdate,
-    admin: Annotated[User, Depends(require_admin)],
+    admin: Annotated[User, Depends(require_master_admin)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    """Update a membership plan (admin only)"""
+    """Update a membership plan (Master Admin only)"""
     stmt = select(Plan).where(Plan.id == plan_id)
     result = await db.execute(stmt)
     plan = result.scalars().first()
@@ -104,10 +104,10 @@ async def update_plan(
 @router.delete("/plans/{plan_id}")
 async def deactivate_plan(
     plan_id: str,
-    admin: Annotated[User, Depends(require_admin)],
+    admin: Annotated[User, Depends(require_master_admin)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    """Deactivate a membership plan (admin only) - soft delete"""
+    """Deactivate a membership plan (Master Admin only) - soft delete"""
     stmt = select(Plan).where(Plan.id == plan_id)
     result = await db.execute(stmt)
     plan = result.scalars().first()
@@ -144,6 +144,8 @@ async def list_all_plans(
         "description": p.description,
         "price": p.price,
         "validity_days": p.validity_days,
+        "follow_up_limit": p.follow_up_limit,
+        "legal_assistance_limit": p.legal_assistance_limit,
         "is_active": p.is_active,
         "created_at": p.created_at.isoformat() if p.created_at else None
     } for p in plans])
@@ -1252,10 +1254,10 @@ DEFAULT_TRUST_TICKER = [
 ]
 
 DEFAULT_BUSINESS_STATS = [
-    {"label": "Highest No. of Defaulters by a Single Customer", "value": "668+"},
-    {"label": "Total Number of MSMEs Connected", "value": "39+ Lakhs"},
-    {"label": "Average Percentage of Settlements", "value": "59%"},
-    {"label": "Total amount reported defaulter", "value": "4578+ Crores"},
+    {"label": "Defaulters by a Single Customer", "value": "668+"},
+    {"label": "MSMEs Connected", "value": "39+ Lakhs"},
+    {"label": "Settlements", "value": "59%"},
+    {"label": "Reported Defaulter Amount", "value": "4578+ Crores"},
 ]
 
 

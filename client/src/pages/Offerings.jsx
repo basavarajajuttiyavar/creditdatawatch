@@ -1,6 +1,13 @@
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import PricingTable from '../components/common/PricingTable'
+import { subscriptions } from '../services/api/apiClient'
 
+// Fallback only — used if the API call fails or briefly while loading,
+// so the page never shows blank. Once a Master Admin edits plans via
+// /admin/manage-plans, the real data below (fetched at render time)
+// takes over and this hardcoded copy is never actually shown for a
+// working page load.
 const DEFAULT_CONTENT = {
   title: "Our Offerings",
   subtitle: "Scalable solutions for every stage of growth",
@@ -53,7 +60,63 @@ const DEFAULT_CONTENT = {
   ]
 }
 
+// Plans can have any validity_days a Master Admin sets now (not just
+// the original fixed 30/180/365), so this picks whichever unit reads
+// most naturally instead of assuming one of three fixed values.
+function formatValidity(days) {
+  if (days % 365 === 0) {
+    const years = days / 365
+    return `Validity: ${years} Year${years > 1 ? 's' : ''}`
+  }
+  if (days % 30 === 0) {
+    const months = days / 30
+    return `Validity: ${months} Month${months > 1 ? 's' : ''}`
+  }
+  return `Validity: ${days} Day${days > 1 ? 's' : ''}`
+}
+
+function apiPlansToContent(apiPlans) {
+  return {
+    title: DEFAULT_CONTENT.title,
+    subtitle: DEFAULT_CONTENT.subtitle,
+    plans: apiPlans.map((p, idx) => ({
+      name: p.display_name,
+      price: `₹${Number(p.price).toLocaleString('en-IN')}`,
+      description: p.description || '',
+      // Backend already returns plans price-ascending — mark the most
+      // expensive one as the highlighted card, matching how Enterprise
+      // was the one hardcoded as featured before.
+      featured: idx === apiPlans.length - 1 && apiPlans.length > 1,
+      features: [
+        formatValidity(p.validity_days),
+        p.features?.legal_assistance_limit > 0
+          ? `Legal Assistance: ${p.features.legal_assistance_limit} Incidents`
+          : 'Legal Assistance: NO',
+        p.features?.follow_up_limit > 0 ? 'Reminder Follow-ups: Yes' : 'Reminder Follow-ups: NO',
+        'CIR Generation Fee: Included',
+      ],
+    })),
+  }
+}
+
 export default function Offerings() {
+  const [content, setContent] = useState(DEFAULT_CONTENT)
+
+  useEffect(() => {
+    let cancelled = false
+    subscriptions.getPlans().then((res) => {
+      if (cancelled) return
+      const apiPlans = res.ok ? (res.data?.data || res.data || []) : []
+      if (apiPlans.length > 0) {
+        setContent(apiPlansToContent(apiPlans))
+      }
+      // else: keep showing DEFAULT_CONTENT rather than an empty page
+    }).catch(() => {
+      // Network error — keep showing DEFAULT_CONTENT
+    })
+    return () => { cancelled = true }
+  }, [])
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-[#F0F4FF]">
       {/* Navy Gradient Header */}
@@ -98,7 +161,7 @@ export default function Offerings() {
 
       {/* Pricing Cards */}
       <section className="py-16 px-4">
-        <PricingTable content={DEFAULT_CONTENT} />
+        <PricingTable content={content} />
       </section>
 
       {/* Note: this page used to have its own bottom CTA ("Ready to protect

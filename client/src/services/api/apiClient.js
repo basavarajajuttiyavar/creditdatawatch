@@ -501,6 +501,13 @@ export const subscriptions = {
   listPending: () => apiRequest('/subscriptions/workflow/pending'),
   initiatePayment: (planId, method = 'qr_code') => apiRequest('/payments/initiate', { method: 'POST', body: JSON.stringify({ plan_id: planId, payment_method: method }) }),
   verifyPayment: (paymentId, transactionId) => apiRequest(`/payments/${paymentId}/verify`, { method: 'POST', body: JSON.stringify({ transaction_id: transactionId }) }),
+  // Master Admin plan management — edits what getPlans()/the public
+  // Offerings page actually shows, since Offerings now fetches from the
+  // same underlying Plan records instead of a hardcoded list.
+  adminListPlans: () => apiRequest('/admin/plans'),
+  adminCreatePlan: (data) => apiRequest('/admin/plans', { method: 'POST', body: JSON.stringify(data) }),
+  adminUpdatePlan: (planId, data) => apiRequest(`/admin/plans/${planId}`, { method: 'PUT', body: JSON.stringify(data) }),
+  adminDeactivatePlan: (planId) => apiRequest(`/admin/plans/${planId}`, { method: 'DELETE' }),
 }
 
 export const defaulters = {
