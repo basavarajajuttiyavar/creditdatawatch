@@ -23,6 +23,11 @@ class PlanUpdate(BaseModel):
     validity_days: Optional[int] = Field(None, gt=0)
     follow_up_limit: Optional[int] = Field(None, ge=0)
     legal_assistance_limit: Optional[int] = Field(None, ge=0)
+    # The DELETE /admin/plans/{id} endpoint only ever turns this off
+    # (soft-delete/deactivate) — this is what lets a Master Admin turn
+    # a deactivated plan back on again, through the same edit endpoint
+    # rather than needing a separate "reactivate" route.
+    is_active: Optional[bool] = None
 
 
 class PlanResponse(BaseModel):

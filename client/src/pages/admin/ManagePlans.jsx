@@ -120,6 +120,20 @@ export default function ManagePlans() {
     }
   }
 
+  const handleActivate = async (plan) => {
+    try {
+      const res = await subscriptions.adminUpdatePlan(plan.id, { is_active: true })
+      if (res.ok) {
+        setMessage(`✅ "${plan.display_name}" is active again.`)
+        fetchPlans()
+      } else {
+        setMessage(res.error || 'Failed to activate plan')
+      }
+    } catch (err) {
+      setMessage('Network error while activating plan')
+    }
+  }
+
   return (
     <div className="max-w-5xl mx-auto p-6">
       <div className="flex items-center justify-between mb-6">
@@ -177,8 +191,10 @@ export default function ManagePlans() {
                   </td>
                   <td className="p-3 text-right space-x-2">
                     <button onClick={() => openEdit(plan)} className="text-blue-600 hover:underline text-xs font-semibold">Edit</button>
-                    {plan.is_active && (
+                    {plan.is_active ? (
                       <button onClick={() => handleDeactivate(plan)} className="text-red-500 hover:underline text-xs font-semibold">Deactivate</button>
+                    ) : (
+                      <button onClick={() => handleActivate(plan)} className="text-green-600 hover:underline text-xs font-semibold">Activate</button>
                     )}
                   </td>
                 </tr>

@@ -87,6 +87,8 @@ async def update_plan(
         plan.follow_up_limit = req.follow_up_limit
     if req.legal_assistance_limit is not None:
         plan.legal_assistance_limit = req.legal_assistance_limit
+    if req.is_active is not None:
+        plan.is_active = req.is_active
     
     await log_audit(
         db=db,
