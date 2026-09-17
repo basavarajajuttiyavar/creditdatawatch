@@ -1280,7 +1280,14 @@ async def _scheduled_reminders_runner():
         try:
             async with AsyncSessionLocal() as session:
                 from app.models import ScheduledReminder, PurchaseOrder, SalesInvoice
-                now = datetime.now(timezone.utc)
+                # scheduled_at/sent_at are plain TIMESTAMP columns (no
+                # timezone) — comparing/assigning them against
+                # datetime.now(timezone.utc) (timezone-AWARE) is what
+                # threw "can't subtract offset-naive and offset-aware
+                # datetimes" and crashed this whole runner on every
+                # tick. datetime.utcnow() returns the equivalent naive
+                # UTC value instead, matching the column type.
+                now = datetime.utcnow()
                 q_sched = select(ScheduledReminder, PurchaseOrder).join(
                     PurchaseOrder, ScheduledReminder.purchase_order_id == PurchaseOrder.id
                 ).where(
@@ -1297,7 +1304,7 @@ async def _scheduled_reminders_runner():
                         try:
                             logger.info(f"Sending scheduled reminder {sr.id} to {po.vendor_email}")
                             await EmailService().send_email(po.vendor_email, sr.subject, sr.body)
-                            sr.sent_at = datetime.now(timezone.utc)
+                            sr.sent_at = datetime.utcnow()
                             await session.commit()
                         except Exception as e:
                             logger.error(f"Failed to send scheduled reminder {sr.id}: {e}")
@@ -1320,7 +1327,7 @@ async def _scheduled_reminders_runner():
                         try:
                             logger.info(f"Sending scheduled invoice reminder {sr.id} to {inv.counterparty_email}")
                             await EmailService().send_email(inv.counterparty_email, sr.subject, sr.body)
-                            sr.sent_at = datetime.now(timezone.utc)
+                            sr.sent_at = datetime.utcnow()
                             await session.commit()
                         except Exception as e:
                             logger.error(f"Failed to send scheduled invoice reminder {sr.id}: {e}")
