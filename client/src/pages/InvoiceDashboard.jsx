@@ -1,10 +1,12 @@
 import { useMemo, useEffect, useState, useCallback } from 'react'
-import QuickActions from '../components/dashboard/QuickActions'
+import QuickActionsRow from '../components/dashboard/QuickActionsRow'
+import SubscriptionStatusCard from '../components/dashboard/SubscriptionStatusCard'
+import CredibilityScoreCard from '../components/dashboard/CredibilityScoreCard'
 import DashboardSummaryCards from '../components/dashboard/DashboardSummaryCards'
 import StatLinkCard from '../components/dashboard/StatLinkCard'
 import StatsChart from '../components/ui/StatsChart'
 import { buildMonthlySeries } from '../utils/monthlySeries'
-import { formatCurrency, formatDate, getExpiryDisplay } from '../utils/dashboardDisplay'
+import { formatCurrency, formatDate } from '../utils/dashboardDisplay'
 import { useAuth } from '../state/authContext'
 import { invoices, defaulters, settlements, appointments, wallet, adminApi, subscriptions, legal, businessCheck, salesInvoices } from '../services/api/apiClient'
 import { Link } from 'react-router-dom'
@@ -269,26 +271,11 @@ export default function InvoiceDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="space-y-3">
-          <h2 className="text-base font-bold text-[#0F172A] uppercase tracking-wide mb-3">Quick Actions</h2>
-          <div className="flex flex-wrap gap-4">
-            <QuickActions context="invoice" />
-            <button
-              onClick={() => setShowBizRequest(true)}
-              className="flex items-center gap-3 px-5 py-4 rounded-[12px] border border-[#E2E8F0] bg-white hover:bg-[#EFF6FF] hover:border-[#3B82F6] transition-all duration-200 group"
-            >
-              <span className="text-2xl group-hover:text-[#3B82F6] transition-colors">🔍</span>
-              <span className="text-base font-semibold text-[#0F172A] group-hover:text-[#1E3A8A]">Check Company Safety</span>
-            </button>
-            <button
-              onClick={() => setShowSupportRequest(true)}
-              className="flex items-center gap-3 px-5 py-4 rounded-[12px] border border-[#E2E8F0] bg-white hover:bg-[#EFF6FF] hover:border-[#3B82F6] transition-all duration-200 group"
-            >
-              <span className="text-2xl group-hover:text-[#3B82F6] transition-colors">📋</span>
-              <span className="text-base font-semibold text-[#0F172A] group-hover:text-[#1E3A8A]">Support Request</span>
-            </button>
-          </div>
-        </div>
+        <QuickActionsRow
+          context="invoice"
+          onCheckSafety={() => setShowBizRequest(true)}
+          onSupportRequest={() => setShowSupportRequest(true)}
+        />
 
 
 
@@ -307,62 +294,15 @@ export default function InvoiceDashboard() {
         {/* COMPANY ADMIN SPECIFIC SECTIONS */}
         {isCompanyAdmin && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-            <div style={{background: 'linear-gradient(135deg, #0F172A 0%, #1E3A8A 60%, #3B82F6 100%)'}} className="rounded-[20px] p-6 text-white shadow-xl">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-lg font-bold text-white">Company Credibility Score</h3>
-                  <p className="text-blue-200 text-xs">Based on your invoice payment history and customer reports</p>
-                </div>
-                <div className="bg-white/20 p-2 rounded-lg">📊</div>
-              </div>
-              <div className="flex items-center gap-6 mt-6">
-                <div className="text-6xl font-black text-white">82</div>
-                <div>
-                  <div className="bg-[#F59E0B] text-[#0F172A] text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide">A Grade</div>
-                  <div className="text-sm mt-2 text-blue-200">Risk Level: <span className="text-white font-bold">Low</span></div>
-                </div>
-              </div>
-              <Link to="/inv-credibility-index" className="mt-6 block text-center bg-white text-[#1E3A8A] hover:bg-[#EFF6FF] py-3 rounded-xl text-sm font-bold transition-all">
-                View Full Analysis →
-              </Link>
-            </div>
-
-            <div className="bg-white rounded-[20px] border border-[#E2E8F0] p-6 shadow-[0_4px_24px_rgba(30,58,138,0.08)]">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-lg font-bold text-[#0F172A]">Subscription Status</h3>
-                  <p className="text-[#475569] text-xs">Your current platform plan</p>
-                </div>
-                <div className="bg-[#EFF6FF] p-2 rounded-lg">💎</div>
-              </div>
-              <div className="mt-6">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-[#475569] font-semibold">{planLabel}</span>
-                  <span className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase ${planStatus === 'Active' ? 'bg-[#DCFCE7] text-[#16A34A]' : 'bg-[#FEE2E2] text-[#DC2626]'}`}>
-                    {planStatus}
-                  </span>
-                </div>
-                {(() => {
-                  const expiry = getExpiryDisplay(subscription)
-                  return (
-                    <>
-                      <div className="w-full h-3 bg-[#F0F4FF] rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-[#1E3A8A] rounded-full transition-all duration-500" 
-                          style={{ width: `${expiry.percent}%` }}
-                        />
-                      </div>
-                      <p className={`text-[11px] mt-2 ${expiry.color}`}>
-                        {expiry.text}
-                      </p>
-                    </>
-                  )
-                })()}
-              </div>
-              <Link to="/membership" className="mt-6 block text-center hover:opacity-90 py-3 rounded-[12px] text-[#0F172A] text-sm font-bold transition-all shadow-md" style={{background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)'}}>
-                Upgrade Plan
-              </Link>
-            </div>
+            <CredibilityScoreCard
+              to="/inv-credibility-index"
+              subtitle="Based on your invoice payment history and customer reports"
+            />
+            <SubscriptionStatusCard
+              planLabel={planLabel}
+              planStatus={planStatus}
+              subscription={subscription}
+            />
           </div>
         )}
 
