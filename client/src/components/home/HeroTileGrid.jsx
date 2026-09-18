@@ -19,14 +19,14 @@ export default function HeroTileGrid({ tiles, columns = 'grid-cols-2 md:grid-col
       {tiles.map((tile) => (
         <div key={tile.title} className="group h-full">
           <Link to={tile.to} className="block h-full">
-            <div className="card h-full min-h-[78px] !p-3 flex flex-col justify-between bg-white/10 border border-white/20 text-white backdrop-blur-md hover:bg-white/15">
+            <div className="card h-full min-h-[56px] !p-2 flex flex-col justify-between bg-white/10 border border-white/20 text-white backdrop-blur-md hover:bg-white/15">
               <div className="flex items-start justify-between gap-2">
-                <p className="font-semibold leading-snug text-xs">{tile.title}</p>
-                <span className="text-xs text-white/80 flex-shrink-0 group-hover:rotate-45 group-hover:translate-x-1 transition-all duration-300">
+                <p className="font-semibold leading-snug text-[11px]">{tile.title}</p>
+                <span className="text-[11px] text-white/80 flex-shrink-0 group-hover:rotate-45 group-hover:translate-x-1 transition-all duration-300">
                   →
                 </span>
               </div>
-              <div className="mt-1.5 h-1 w-8 rounded-full bg-gradient-to-r from-[#1E3A8A] to-[#3B82F6] group-hover:w-full transition-all duration-300" />
+              <div className="mt-1 h-0.5 w-6 rounded-full bg-gradient-to-r from-[#1E3A8A] to-[#3B82F6] group-hover:w-full transition-all duration-300" />
             </div>
           </Link>
         </div>
