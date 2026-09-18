@@ -160,7 +160,12 @@ export default function Membership() {
     setSubmitting(true)
     setMessage('')
     try {
-      const res = await subscriptions.verifyPayment(paymentData.payment_id, 'FREE_PLAN')
+      // A fixed literal string here would collide with the backend's
+      // duplicate-transaction-ID check on any second free-plan
+      // activation (that column is unique) — paymentData.payment_id is
+      // already unique per attempt, so reusing it here guarantees no
+      // collision without needing a real transaction to reference.
+      const res = await subscriptions.verifyPayment(paymentData.payment_id, `FREE_${paymentData.payment_id}`)
       if (res.ok) {
         await loadUser()
         setStep('submitted')
