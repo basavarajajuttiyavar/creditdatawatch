@@ -117,22 +117,6 @@ export default function CredibilityIndex() {
 
   return (
     <div className="min-h-screen bg-[#F0F4FF]">
-      <style>{`
-        .scrollable-container::-webkit-scrollbar { width: 6px; } 
-        .scrollable-container::-webkit-scrollbar-track { background: #F0F4FF; border-radius: 999px; } 
-        .scrollable-container::-webkit-scrollbar-thumb { background: #93C5FD; border-radius: 999px; } 
-        .scrollable-container::-webkit-scrollbar-thumb:hover { background: #3B82F6; }
-        .scrollable-container::after {
-          content: '';
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          height: 40px;
-          background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.9));
-          pointer-events: none;
-        }
-      `}</style>
       {/* Navy Gradient Header */}
       <section 
         className="py-20 px-4 text-white text-center"
