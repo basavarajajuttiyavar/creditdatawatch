@@ -254,12 +254,19 @@ async def get_subscription_status(
             has_active = is_valid
             
             if subscription.expiry_date:
-                now = datetime.now()
-                if subscription.expiry_date < now:
+                now = datetime.utcnow()
+                expiry = subscription.expiry_date
+                # expiry_date can be naive or timezone-aware depending on
+                # how the row was written — normalize before comparing
+                # (see access_control_service.py for the fuller
+                # explanation of this recurring bug class).
+                if expiry.tzinfo is not None:
+                    expiry = expiry.replace(tzinfo=None)
+                if expiry < now:
                     is_expired = True
                     days_remaining = 0
                 else:
-                    delta = subscription.expiry_date - now
+                    delta = expiry - now
                     days_remaining = delta.days
         
         subscription_data = None

@@ -75,7 +75,13 @@ async def _has_active_subscription(user_id: str, db: AsyncSession) -> bool:
     sub = res.scalars().first()
     if not sub:
         return False
-    if sub.expiry_date and sub.expiry_date < __import__("datetime").datetime.now(timezone.utc).replace(tzinfo=None):
+    # expiry_date can be naive or timezone-aware depending on how the
+    # row was written — normalize before comparing (see
+    # access_control_service.py for the fuller explanation).
+    expiry = sub.expiry_date
+    if expiry is not None and expiry.tzinfo is not None:
+        expiry = expiry.replace(tzinfo=None)
+    if expiry and expiry < __import__("datetime").datetime.utcnow():
         return False
     return True
 

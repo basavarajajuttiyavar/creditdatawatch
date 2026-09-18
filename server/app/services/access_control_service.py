@@ -70,8 +70,22 @@ class AccessControlService:
             if not subscription:
                 return False
             
-            # Check if subscription is expired
-            if subscription.expiry_date and subscription.expiry_date < datetime.now(timezone.utc).replace(tzinfo=None):
+            # Check if subscription is expired. expiry_date can come back
+            # timezone-aware or naive depending on how the row was
+            # written — comparing it against an unconditionally-naive
+            # "now" crashes with "can't compare offset-naive and
+            # offset-aware datetimes" whenever it's aware (the same bug
+            # already hit twice elsewhere: _scheduled_reminders_runner
+            # in main.py, and the Membership page's is_active display in
+            # user.py). That crash wasn't a SQLAlchemyError, so it
+            # wasn't caught by the except below — it propagated all the
+            # way up and made every single feature check fail closed,
+            # which is why access looked completely restricted instead
+            # of just this one subscription being treated as expired.
+            expiry = subscription.expiry_date
+            if expiry is not None and expiry.tzinfo is not None:
+                expiry = expiry.replace(tzinfo=None)
+            if expiry and expiry < datetime.utcnow():
                 return False
             
             # For COMPANY_ADMIN or USER, any active (non-expired) subscription grants access

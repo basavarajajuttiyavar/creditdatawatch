@@ -57,7 +57,15 @@ class SubscriptionService:
         if not subscription.is_active:
             return False
         
-        if subscription.expiry_date and subscription.expiry_date < datetime.now(timezone.utc).replace(tzinfo=None):
+        # expiry_date can be naive or timezone-aware depending on how the
+        # row was written — normalize before comparing, or this crashes
+        # with "can't compare offset-naive and offset-aware datetimes"
+        # whenever it's aware (see access_control_service.py for the
+        # fuller explanation of this recurring bug class).
+        expiry = subscription.expiry_date
+        if expiry is not None and expiry.tzinfo is not None:
+            expiry = expiry.replace(tzinfo=None)
+        if expiry and expiry < datetime.utcnow():
             return False
         
         return True
