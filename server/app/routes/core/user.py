@@ -261,8 +261,15 @@ async def get_subscription(current_user: Annotated[User, Depends(get_current_use
     # check, in AccessControlService.can_access_feature, already
     # compares against expiry_date directly) — this only fixes what
     # this one page displays.
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    is_currently_active = bool(sub.is_active) and (sub.expiry_date is None or sub.expiry_date > now)
+    now = datetime.utcnow()
+    expiry = sub.expiry_date
+    # expiry_date can come back timezone-aware or naive depending on how
+    # the row was written (this same naive-vs-aware mismatch already
+    # crashed _scheduled_reminders_runner once before — see main.py).
+    # Stripping tzinfo if present keeps this comparison safe either way.
+    if expiry is not None and expiry.tzinfo is not None:
+        expiry = expiry.replace(tzinfo=None)
+    is_currently_active = bool(sub.is_active) and (expiry is None or expiry > now)
     data = {
         "id": sub.id,
         "user_id": sub.user_id,
