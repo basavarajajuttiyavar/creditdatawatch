@@ -1222,7 +1222,9 @@ async def run_daily_tasks():
                 vi_cfg_res = await session.execute(
                     select(AppSettings).where(AppSettings.vendor_reminder_email.isnot(None))
                 )
-                for vi_cfg in vi_cfg_res.scalars().all():
+                vi_cfg_rows = vi_cfg_res.scalars().all()
+                logger.info(f"[REMINDER] Found {len(vi_cfg_rows)} company/user settings row(s) with a reminder email configured")
+                for vi_cfg in vi_cfg_rows:
                     reminder_email = vi_cfg.vendor_reminder_email
                     if not reminder_email:
                         continue
@@ -1242,7 +1244,12 @@ async def run_daily_tasks():
                         scope_filter
                     )
                     vi_res = await session.execute(vi_q)
-                    for vi in vi_res.scalars().all():
+                    matched = vi_res.scalars().all()
+                    logger.info(
+                        f"[REMINDER] Scope {vi_cfg.id}: {len(matched)} unpaid invoice(s) due before "
+                        f"{cutoff.date()} (reminder_days_before={reminder_days_before}), sending to {reminder_email}"
+                    )
+                    for vi in matched:
                         due_date_str = vi.payment_due_date.isoformat() if vi.payment_due_date else "N/A"
                         amount_str = f"₹{vi.total:,.2f}"
                         subject = f"Payment Reminder: Vendor Bill {vi.invoice_number} due on {due_date_str}"
@@ -1253,6 +1260,7 @@ async def run_daily_tasks():
                         )
                         try:
                             await EmailService().send_email(reminder_email, subject, body)
+                            logger.info(f"[REMINDER] Sent reminder for invoice {vi.invoice_number} to {reminder_email}")
                         except Exception as e:
                             logger.warning(f"[REMINDER] Failed to send vendor invoice reminder for {vi.invoice_number}: {e}")
             except Exception as e:
