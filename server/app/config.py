@@ -139,6 +139,11 @@ class Settings(BaseSettings):
     # Frontend URL for building links in emails
     FRONTEND_URL: str = "http://localhost:3001"
     BASE_URL: str = "http://localhost:8000"
+    # The real UPI ID customers pay subscription fees to — shown on the
+    # Membership payment QR code page. Was previously hardcoded as the
+    # literal placeholder "YOUR_UPI_ID_HERE" in payment_service.py, so
+    # every payment QR code pointed nowhere real until this is set.
+    UPI_ID: str = "YOUR_UPI_ID_HERE"
     HOST: str = "127.0.0.1"
     PORT: int = 8000
     ENABLE_SCHEDULER: bool = True

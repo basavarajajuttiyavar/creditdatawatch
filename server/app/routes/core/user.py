@@ -251,13 +251,25 @@ async def get_subscription(current_user: Annotated[User, Depends(get_current_use
     # relationship actually holds — the frontend (Membership.jsx,
     # InvoiceDashboard.jsx) calls `.toUpperCase()` directly on this
     # field, which would throw on an object.
+    #
+    # is_active here is computed live from the expiry date, not read
+    # directly off sub.is_active. The stored flag only ever gets set to
+    # True at approval time — nothing flips it back to False purely
+    # because expiry_date has since passed, so the Membership page could
+    # otherwise keep showing "Active" next to a date that's already in
+    # the past. Real feature access was never affected by this (that
+    # check, in AccessControlService.can_access_feature, already
+    # compares against expiry_date directly) — this only fixes what
+    # this one page displays.
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    is_currently_active = bool(sub.is_active) and (sub.expiry_date is None or sub.expiry_date > now)
     data = {
         "id": sub.id,
         "user_id": sub.user_id,
         "plan_id": sub.plan_id,
         "plan": sub.plan.display_name if sub.plan else None,
         "status": sub.status,
-        "is_active": sub.is_active,
+        "is_active": is_currently_active,
         "start_date": sub.start_date,
         "expiry_date": sub.expiry_date,
         "payment_id": sub.payment_id,

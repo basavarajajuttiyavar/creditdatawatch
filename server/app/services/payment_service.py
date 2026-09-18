@@ -8,6 +8,7 @@ from sqlalchemy import select
 from typing import Optional, Dict, Any
 from app.models import Payment, Plan, User, PaymentStatus, PaymentMethod, MembershipStatus
 from app.exceptions import PlanNotFound, UserNotFound
+from app.config import settings
 from app.services.subscription_service import SubscriptionService
 import logging
 import secrets
@@ -141,7 +142,7 @@ class PaymentService:
         
         if payment_method == PaymentMethod.UPI or payment_method == PaymentMethod.QR_CODE:
             # Generate UPI QR code and UPI ID
-            upi_id = "YOUR_UPI_ID_HERE"  # e.g. "yourname@okicici", "yourname@oksbi", "yourname@ybl"
+            upi_id = settings.UPI_ID
             upi_string = f"upi://pay?pa={upi_id}&pn=CreditDataWatch&am={amount}&cu=INR&tn={reference_id}"
             qr_code_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={upi_string}"
             
@@ -245,7 +246,30 @@ class PaymentService:
         payment.updated_at = now
         
         await db.flush()
-        
+
+        # Free (₹0) plans skip the manual Operations/Financial → Master
+        # Admin approval workflow entirely and activate immediately —
+        # there's no real money to verify, so making someone manually
+        # approve a ₹0 request adds a step with nothing to actually
+        # check. Paid plans (amount > 0) still go through the full
+        # workflow below, unchanged.
+        if payment.amount == 0:
+            subscription = await SubscriptionService.purchase_subscription(
+                user_id=payment.user_id,
+                plan_id=payment.plan_id,
+                db=db,
+                payment_id=payment.id,
+            )
+            subscription.status = MembershipStatus.ACTIVE
+            subscription.is_active = True
+            subscription.updated_at = datetime.utcnow()
+            await db.flush()
+            logger.info(
+                f"Free plan auto-activated: payment_id={payment_id}, "
+                f"subscription_id={subscription.id}, plan_id={payment.plan_id}"
+            )
+            return payment, subscription
+
         # Activate subscription workflow
         from app.services.workflow_service import WorkflowService
         from app.models import User, Plan, Company
