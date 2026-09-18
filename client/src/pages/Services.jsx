@@ -83,25 +83,25 @@ export default function Services() {
 
       {/* Hero */}
       <section 
-        className="py-10 px-4 text-white text-center"
+        className="py-6 px-4 text-white text-center"
         style={{ 
           background: 'linear-gradient(135deg, #0F172A 0%, #1E3A8A 60%, #1D4ED8 100%)',
         }}
       >
         <div className="max-w-5xl mx-auto">
-          <h1 className="text-xl sm:text-2xl font-bold mb-3">Our Services</h1>
+          <h1 className="text-lg sm:text-xl font-bold mb-2">Our Services</h1>
           <div 
-            className="mx-auto mb-4"
+            className="mx-auto mb-3"
             style={{ 
-              width: '48px', 
+              width: '40px', 
               height: '3px', 
               backgroundColor: '#F59E0B' 
             }}
           ></div>
-          <p className="text-[#93C5FD] text-base max-w-3xl mx-auto">
+          <p className="text-[#93C5FD] text-sm max-w-3xl mx-auto">
             Comprehensive credit intelligence, risk management, and debt recovery tools designed for Indian businesses and MSMEs.
           </p>
-          <div className="mt-10 text-left">
+          <div className="mt-5 text-left">
             <HeroTileGrid
               columns="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
               tiles={[
