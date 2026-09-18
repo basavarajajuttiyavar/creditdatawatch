@@ -1366,11 +1366,6 @@ export default function RoleDashboard() {
             <Link to="/admin/defaulter-approvals" className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors hover:bg-gray-50 text-gray-700">
               🚩 Defaulter Case Approvals
             </Link>
-            {isMaster && (
-              <Link to="/admin/manage-plans" className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors hover:bg-gray-50 text-gray-700">
-                💰 Manage Plans
-              </Link>
-            )}
             <button onClick={() => setActiveNav('business-approvals')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors ${activeNav === 'business-approvals' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'hover:bg-gray-50 text-gray-700'}`}>
               🏢 Business Check Report Approvals
             </button>
@@ -1392,6 +1387,11 @@ export default function RoleDashboard() {
             <Link to="/admin/activity" className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors hover:bg-gray-50 text-gray-700">
               📋 Activity Logs
             </Link>
+            {isMaster && (
+              <Link to="/admin/manage-plans" className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors hover:bg-gray-50 text-gray-700">
+                💰 Manage Plans
+              </Link>
+            )}
           </div>
         </div>
 
