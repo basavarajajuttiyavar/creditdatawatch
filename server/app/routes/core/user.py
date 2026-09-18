@@ -219,7 +219,6 @@ async def get_subscription(current_user: Annotated[User, Depends(get_current_use
     # their real subscription state.
     STAFF_BYPASS_ROLES = {"MASTER_ADMIN", "OPERATIONS", "OPERATION", "LEGAL", "FINANCIAL", "FINANCE"}
     if role in STAFF_BYPASS_ROLES:
-        from datetime import datetime
         data = {
             "id": current_user.id,
             "plan": "ADMIN_FREE",
