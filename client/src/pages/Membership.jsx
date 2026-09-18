@@ -148,6 +148,30 @@ export default function Membership() {
     } 
     setSubmitting(false) 
   } 
+
+  // ₹0 plans have nothing to pay and nothing to prove — there's no real
+  // transaction, so asking for a UPI reference number and a payment
+  // screenshot here doesn't make sense (and previously left people
+  // stuck on a form with two required fields they had no way to fill
+  // in honestly). This skips straight to verification with a
+  // placeholder reference; the backend already auto-activates ₹0
+  // plans immediately regardless of what's passed here.
+  const handleActivateFree = async () => {
+    setSubmitting(true)
+    setMessage('')
+    try {
+      const res = await subscriptions.verifyPayment(paymentData.payment_id, 'FREE_PLAN')
+      if (res.ok) {
+        await loadUser()
+        setStep('submitted')
+      } else {
+        setMessage(res.error || 'Failed to activate. Please try again.')
+      }
+    } catch (e) {
+      setMessage('Network error. Please try again.')
+    }
+    setSubmitting(false)
+  }
  
   if (loading) return <div className="p-10 text-center">Loading membership details...</div> 
  
@@ -305,6 +329,36 @@ export default function Membership() {
               {selectedPlan.name} Plan — {selectedPlan.validity} 
             </p> 
  
+            {selectedPlan.price === 0 ? (
+              <div className="space-y-4">
+                <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl px-4 py-4 text-center">
+                  <p className="text-sm text-[#166534]">
+                    This plan is free — there's nothing to pay. Click below to activate it right away.
+                  </p>
+                </div>
+                {message && (
+                  <p className="text-[#DC2626] text-sm bg-[#FEE2E2] border border-[#FECACA] rounded-lg px-3 py-2">
+                    {message}
+                  </p>
+                )}
+                <button
+                  onClick={handleActivateFree}
+                  disabled={submitting}
+                  className="w-full bg-[#16A34A] hover:bg-[#15803D] disabled:opacity-60 text-white font-semibold py-3.5 rounded-[12px] flex items-center justify-center gap-2 transition-colors"
+                >
+                  {submitting ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                      </svg>
+                      Activating...
+                    </>
+                  ) : '✅ Activate Free Plan'}
+                </button>
+              </div>
+            ) : (
+            <>
             {/* QR Code */} 
             <div className="flex flex-col items-center mb-6"> 
               <div className="bg-white p-3 rounded-xl border-[8px] border-[#EFF6FF] shadow-sm mb-3"> 
@@ -399,6 +453,8 @@ export default function Membership() {
                 ) : '✅ Submit Payment Proof'} 
               </button> 
             </div> 
+            </>
+            )}
           </div> 
         )} 
  
