@@ -1098,7 +1098,16 @@ async def run_daily_tasks():
             await CredibilityService.recalc_all(session)
             await session.commit()
             # due in 3 days notifications
-            cutoff_start = datetime.now(timezone.utc)
+            # due_date is TIMESTAMP WITHOUT TIME ZONE — binding a
+            # timezone-AWARE datetime.now(timezone.utc) as a query
+            # parameter against it is what asyncpg was rejecting with
+            # "can't subtract offset-naive and offset-aware datetimes".
+            # That crash happened right here, at the very start of this
+            # function, inside the outer try/except — so it silently
+            # skipped everything below it too, including the vendor
+            # invoice reminder loop further down. datetime.utcnow()
+            # returns the equivalent naive value instead.
+            cutoff_start = datetime.utcnow()
             cutoff_end = cutoff_start + timedelta(days=3)
             stmt = select(PurchaseOrder, User).join(User, PurchaseOrder.user_id == User.id).where(
                 (PurchaseOrder.payment_completed_at.is_(None)) &
@@ -1119,7 +1128,7 @@ async def run_daily_tasks():
             # overdue notifications
             stmt2 = select(PurchaseOrder, User).join(User, PurchaseOrder.user_id == User.id).where(
                 (PurchaseOrder.payment_completed_at.is_(None)) &
-                (PurchaseOrder.due_date < datetime.now(timezone.utc))
+                (PurchaseOrder.due_date < datetime.utcnow())
             )
             res2 = await session.execute(stmt2)
             for po, user in res2.all():
@@ -1153,7 +1162,7 @@ async def run_daily_tasks():
 
                 # Send BEFORE due date reminders
                 if before_days:
-                    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+                    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
                     for d in before_days:
                         try:
                             delta = int(d)
@@ -1177,7 +1186,7 @@ async def run_daily_tasks():
                                     logger.warning(f"[REMINDER] Failed to send BEFORE-due reminder for PO {po.po_number}: {e}")
                 # Send AFTER due date daily reminders
                 if after_daily:
-                    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+                    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
                     q2 = select(PurchaseOrder).where(
                         (PurchaseOrder.payment_completed_at.is_(None)) &
                         (PurchaseOrder.due_date < today_start) &
